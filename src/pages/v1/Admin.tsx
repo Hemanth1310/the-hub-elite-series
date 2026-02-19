@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
@@ -8,32 +8,111 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Plus, Pencil } from 'lucide-react';
-import { competitions } from '@/mockData';
 import { Link } from 'wouter';
 import { toast } from 'sonner';
 import LayoutV1 from './Layout';
-
-// Mock data for rounds
-const rounds = [
-  { number: 14, firstMatchDate: '2025-01-11', gamesCount: 8, status: 'final' },
-  { number: 15, firstMatchDate: '2025-01-18', gamesCount: 8, status: 'final' },
-  { number: 16, firstMatchDate: '2025-01-25', gamesCount: 8, status: 'active' },
-  { number: 17, firstMatchDate: '2025-02-01', gamesCount: 8, status: 'scheduled' },
-  { number: 18, firstMatchDate: '2025-02-08', gamesCount: 7, status: 'scheduled' },
-];
-
-// Mock data for postponed games
-const postponedGames = [
-  { id: 1, originalRound: 16, matchDate: '2025-02-15', homeTeam: 'MCI', awayTeam: 'NEW', status: 'scheduled' },
-  { id: 2, originalRound: 14, matchDate: '2025-02-12', homeTeam: 'EVE', awayTeam: 'LIV', status: 'active' },
-];
+import { supabase } from '@/lib/supabase';
 
 export default function AdminV1() {
-  const [selectedCompetition, setSelectedCompetition] = useState('c1');
+  const [competitions, setCompetitions] = useState<any[]>([]);
+  const [selectedCompetition, setSelectedCompetition] = useState('');
+  const [rounds, setRounds] = useState<any[]>([]);
+  const [postponedGames, setPostponedGames] = useState<any[]>([]);
   const [viewMode, setViewMode] = useState<'rounds' | 'postponed'>('rounds');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [competitionName, setCompetitionName] = useState('');
   const [isActive, setIsActive] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchCompetitions = async () => {
+      const { data } = await supabase
+        .from('competitions')
+        .select('id,name,is_active')
+        .order('created_at', { ascending: true });
+
+      const list = data || [];
+      setCompetitions(list);
+      const active = list.find((comp) => comp.is_active) || list[0];
+      if (active) {
+        setSelectedCompetition(active.id);
+      }
+    };
+
+    fetchCompetitions();
+  }, []);
+
+  useEffect(() => {
+    const fetchRounds = async () => {
+      if (!selectedCompetition) {
+        setRounds([]);
+        setPostponedGames([]);
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
+
+      const { data: roundRows } = await supabase
+        .from('rounds')
+        .select('id,round_number,deadline,status')
+        .eq('competition_id', selectedCompetition)
+        .order('round_number', { ascending: false });
+
+      const roundsWithStats = await Promise.all(
+        (roundRows || []).map(async (round) => {
+          const { data: firstMatch } = await supabase
+            .from('matches')
+            .select('kickoff')
+            .eq('round_id', round.id)
+            .order('kickoff', { ascending: true })
+            .limit(1)
+            .maybeSingle();
+
+          const { count } = await supabase
+            .from('matches')
+            .select('id', { count: 'exact', head: true })
+            .eq('round_id', round.id);
+
+          return {
+            id: round.id,
+            number: round.round_number,
+            firstMatchDate: firstMatch?.kickoff ? new Date(firstMatch.kickoff).toLocaleDateString() : '—',
+            gamesCount: count || 0,
+            status: round.status === 'published' ? 'active' : round.status,
+          };
+        })
+      );
+
+      setRounds(roundsWithStats);
+
+      const { data: postponedRows } = await supabase
+        .from('matches')
+        .select('id,kickoff,status,home_team:home_team_id(short_name),away_team:away_team_id(short_name),round:round_id(round_number)')
+        .eq('status', 'postponed')
+        .order('kickoff', { ascending: false });
+
+      const postponedList = (postponedRows || []).map((match) => {
+        const homeTeam = Array.isArray(match.home_team) ? match.home_team[0] : match.home_team;
+        const awayTeam = Array.isArray(match.away_team) ? match.away_team[0] : match.away_team;
+        const round = Array.isArray(match.round) ? match.round[0] : match.round;
+
+        return {
+          id: match.id,
+          originalRound: round?.round_number || '—',
+          matchDate: match.kickoff ? new Date(match.kickoff).toLocaleDateString() : '—',
+          homeTeam: homeTeam?.short_name || '—',
+          awayTeam: awayTeam?.short_name || '—',
+          status: match.status || 'scheduled',
+        };
+      });
+
+      setPostponedGames(postponedList);
+      setLoading(false);
+    };
+
+    fetchRounds();
+  }, [selectedCompetition]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -257,15 +336,49 @@ export default function AdminV1() {
               Cancel
             </Button>
             <Button 
-              onClick={() => {
+              onClick={async () => {
                 if (!competitionName.trim()) {
                   toast.error('Please enter a competition name');
                   return;
                 }
+
+                const slug = competitionName
+                  .toLowerCase()
+                  .trim()
+                  .replace(/\s+/g, '-')
+                  .replace(/[^a-z0-9-]/g, '');
+
+                const season = new Date().getFullYear().toString();
+
+                const { data: created, error } = await supabase
+                  .from('competitions')
+                  .insert({
+                    name: competitionName.trim(),
+                    slug,
+                    season,
+                    is_active: isActive,
+                  })
+                  .select('id,name,is_active')
+                  .single();
+
+                if (error || !created) {
+                  toast.error('Failed to create competition');
+                  return;
+                }
+
+                if (isActive) {
+                  await supabase
+                    .from('competitions')
+                    .update({ is_active: false })
+                    .neq('id', created.id);
+                }
+
                 toast.success(`Competition "${competitionName}" created!`);
                 setIsDialogOpen(false);
                 setCompetitionName('');
                 setIsActive(false);
+                setCompetitions((prev) => [...prev, created]);
+                setSelectedCompetition(created.id);
               }}
               className="bg-blue-600 hover:bg-blue-700"
             >

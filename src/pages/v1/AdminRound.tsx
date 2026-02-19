@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -19,6 +19,7 @@ import { Link, useRoute, useLocation } from 'wouter';
 import { toast } from 'sonner';
 import LayoutV1 from './Layout';
 import { notifyAllPlayers, isEmailServiceConfigured } from '@/lib/emailService';
+import { supabase } from '@/lib/supabase';
 
 /**
  * Admin Round Management
@@ -33,22 +34,6 @@ import { notifyAllPlayers, isEmailServiceConfigured } from '@/lib/emailService';
  * Note: Admin can set Final at any time from Active status (before Completed)
  */
 
-// Mock teams for adding new matches
-const allTeams = [
-  { name: 'Arsenal', short: 'ARS' },
-  { name: 'Aston Villa', short: 'AVL' },
-  { name: 'Brighton', short: 'BHA' },
-  { name: 'Chelsea', short: 'CHE' },
-  { name: 'Everton', short: 'EVE' },
-  { name: 'Liverpool', short: 'LIV' },
-  { name: 'Manchester City', short: 'MCI' },
-  { name: 'Manchester United', short: 'MUN' },
-  { name: 'Newcastle', short: 'NEW' },
-  { name: 'Tottenham', short: 'TOT' },
-  { name: 'West Ham', short: 'WHU' },
-  { name: 'Wolves', short: 'WOL' },
-];
-
 export default function AdminRoundV1() {
   const [, params] = useRoute('/version1/admin/round/:roundNumber');
   const [, postponedParams] = useRoute('/version1/admin/postponed/:id');
@@ -59,87 +44,237 @@ export default function AdminRoundV1() {
   const roundNumber = params?.roundNumber || postponedParams?.id || 'new';
   const isNew = roundNumber === 'new';
   
-  // Determine initial status
-  const getInitialStatus = () => {
-    if (isNew) return 'scheduled';
-    if (isPostponed) {
-      // Postponed game #2 is active, others are scheduled
-      return postponedParams?.id === '2' ? 'active' : 'scheduled';
-    }
-    const num = parseInt(roundNumber);
-    if (num >= 17) return 'scheduled';
-    if (num === 16) return 'active';
-    return 'final';
-  };
-  
-  const [status, setStatus] = useState<'scheduled' | 'active' | 'final'>(getInitialStatus());
-  const [deadline, setDeadline] = useState('2025-02-01T14:00');
-  const [originalRound, setOriginalRound] = useState('16');
-  const [roundNumberInput, setRoundNumberInput] = useState('');
+  const [status, setStatus] = useState<'scheduled' | 'active' | 'final'>(isNew ? 'scheduled' : 'scheduled');
+  const [deadline, setDeadline] = useState('');
+  const [originalRound, setOriginalRound] = useState('');
+  const [roundNumberInput, setRoundNumberInput] = useState(isNew ? '' : roundNumber);
+  const [competitionId, setCompetitionId] = useState<string | null>(null);
+  const [roundId, setRoundId] = useState<string | null>(null);
+  const [allTeams, setAllTeams] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   
   // Dialog states
-  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; matchId: number | null }>({ open: false, matchId: null });
-  const [postponeDialog, setPostponeDialog] = useState<{ open: boolean; matchId: number | null }>({ open: false, matchId: null });
+  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; matchId: string | null }>({ open: false, matchId: null });
+  const [postponeDialog, setPostponeDialog] = useState<{ open: boolean; matchId: string | null }>({ open: false, matchId: null });
   const [publishWarning, setPublishWarning] = useState(false);
   const [setFinalError, setSetFinalError] = useState('');
   
-  // Mock match data
-  const isFinalRound = getInitialStatus() === 'final';
-  const initialMatches = (isPostponed && isNew) ? [] : isPostponed ? [
-    // Postponed game - only 1 match
-    { id: 1, homeTeam: 'Manchester City', homeShort: 'MCI', awayTeam: 'Arsenal', awayShort: 'ARS', kickoff: '2025-02-01T15:00', includeInRound: true, result: null },
-  ] : [
-    // Regular round - multiple matches
-    { id: 1, homeTeam: 'Manchester City', homeShort: 'MCI', awayTeam: 'Arsenal', awayShort: 'ARS', kickoff: '2025-02-01T15:00', includeInRound: true, result: isFinalRound ? 'H' : null },
-    { id: 2, homeTeam: 'Liverpool', homeShort: 'LIV', awayTeam: 'Aston Villa', awayShort: 'AVL', kickoff: '2025-02-01T15:00', includeInRound: true, result: isFinalRound ? 'U' : null },
-    { id: 3, homeTeam: 'Tottenham', homeShort: 'TOT', awayTeam: 'Chelsea', awayShort: 'CHE', kickoff: '2025-02-01T17:30', includeInRound: true, result: isFinalRound ? 'B' : null },
-    { id: 4, homeTeam: 'Newcastle', homeShort: 'NEW', awayTeam: 'Manchester United', awayShort: 'MUN', kickoff: '2025-02-02T14:00', includeInRound: true, result: isFinalRound ? 'H' : null },
-    { id: 5, homeTeam: 'West Ham', homeShort: 'WHU', awayTeam: 'Brighton', awayShort: 'BHA', kickoff: '2025-02-02T14:00', includeInRound: true, result: isFinalRound ? 'U' : null },
-  ];
-  
-  const [matches, setMatches] = useState(initialMatches);
+  const [matches, setMatches] = useState<any[]>([]);
   const [postponedMatches, setPostponedMatches] = useState<any[]>([]);
   const [showAddMatch, setShowAddMatch] = useState(false);
   const [newHomeTeam, setNewHomeTeam] = useState('');
   const [newAwayTeam, setNewAwayTeam] = useState('');
-  const [matchOfTheWeek, setMatchOfTheWeek] = useState<number | null>(null);
+  const [matchOfTheWeek, setMatchOfTheWeek] = useState<string | null>(null);
 
-  const handlePostponeMatch = (matchId: number) => {
+  const toInputDateTime = (value: string) => {
+    const date = new Date(value);
+    const pad = (num: number) => String(num).padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  };
+
+  useEffect(() => {
+    const fetchAdminRoundData = async () => {
+      setLoading(true);
+
+      const { data: competition } = await supabase
+        .from('competitions')
+        .select('id')
+        .eq('is_active', true)
+        .single();
+
+      setCompetitionId(competition?.id || null);
+
+      const { data: teams } = await supabase
+        .from('teams')
+        .select('id,name,short_name')
+        .order('name', { ascending: true });
+
+      setAllTeams(teams || []);
+
+      if (isNew && !deadline) {
+        setDeadline(toInputDateTime(new Date().toISOString()));
+      }
+
+      if (isNew && !isPostponed && competition?.id && !roundNumberInput) {
+        const { data: latestRound } = await supabase
+          .from('rounds')
+          .select('round_number')
+          .eq('competition_id', competition.id)
+          .order('round_number', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        const nextNumber = latestRound?.round_number ? latestRound.round_number + 1 : 1;
+        setRoundNumberInput(nextNumber.toString());
+      }
+
+      if (isPostponed) {
+        if (!isNew) {
+          const { data: match } = await supabase
+            .from('matches')
+            .select('id,home_team_id,away_team_id,kickoff,include_in_round,result,is_match_of_the_week,status,home_team:home_team_id(name,short_name),away_team:away_team_id(name,short_name)')
+            .eq('id', roundNumber)
+            .single();
+
+          if (match) {
+            const homeTeamData = Array.isArray(match.home_team) ? match.home_team[0] : match.home_team;
+            const awayTeamData = Array.isArray(match.away_team) ? match.away_team[0] : match.away_team;
+            setMatches([
+              {
+                id: match.id,
+                homeTeamId: match.home_team_id,
+                awayTeamId: match.away_team_id,
+                homeTeam: homeTeamData?.name || '',
+                homeShort: homeTeamData?.short_name || '',
+                awayTeam: awayTeamData?.name || '',
+                awayShort: awayTeamData?.short_name || '',
+                kickoff: toInputDateTime(match.kickoff),
+                includeInRound: match.include_in_round,
+                result: match.result,
+                isMatchOfTheWeek: match.is_match_of_the_week,
+              },
+            ]);
+            setMatchOfTheWeek(match.is_match_of_the_week ? match.id : null);
+            setDeadline(toInputDateTime(match.kickoff));
+            setStatus(match.status === 'finished' ? 'final' : match.status === 'live' ? 'active' : 'scheduled');
+          }
+        }
+
+        setLoading(false);
+        return;
+      }
+
+      if (!isNew && competition?.id) {
+        const { data: round } = await supabase
+          .from('rounds')
+          .select('id,deadline,status,round_number')
+          .eq('competition_id', competition.id)
+          .eq('round_number', roundNumber)
+          .single();
+
+        if (round) {
+          setRoundId(round.id);
+          setRoundNumberInput(round.round_number.toString());
+          setDeadline(toInputDateTime(round.deadline));
+          setStatus(round.status === 'published' ? 'active' : round.status);
+
+          const { data: roundMatches } = await supabase
+            .from('matches')
+            .select('id,home_team_id,away_team_id,kickoff,include_in_round,result,is_match_of_the_week,home_team:home_team_id(name,short_name),away_team:away_team_id(name,short_name)')
+            .eq('round_id', round.id)
+            .order('kickoff', { ascending: true });
+
+          const mapped = (roundMatches || []).map((match) => {
+            const homeTeamData = Array.isArray(match.home_team) ? match.home_team[0] : match.home_team;
+            const awayTeamData = Array.isArray(match.away_team) ? match.away_team[0] : match.away_team;
+            return {
+              id: match.id,
+              homeTeamId: match.home_team_id,
+              awayTeamId: match.away_team_id,
+              homeTeam: homeTeamData?.name || '',
+              homeShort: homeTeamData?.short_name || '',
+              awayTeam: awayTeamData?.name || '',
+              awayShort: awayTeamData?.short_name || '',
+              kickoff: toInputDateTime(match.kickoff),
+              includeInRound: match.include_in_round,
+              result: match.result,
+              isMatchOfTheWeek: match.is_match_of_the_week,
+            };
+          });
+
+          setMatches(mapped);
+          const motw = mapped.find((match) => match.isMatchOfTheWeek);
+          setMatchOfTheWeek(motw?.id || null);
+        }
+      }
+
+      setLoading(false);
+    };
+
+    fetchAdminRoundData();
+  }, [isPostponed, isNew, roundNumber]);
+
+  const handlePostponeMatch = async (matchId: string) => {
     const match = matches.find(m => m.id === matchId);
     if (match) {
-      // Move to postponed
+      const { error } = await supabase
+        .from('matches')
+        .update({
+          status: 'postponed',
+          include_in_round: false,
+          round_id: null,
+        })
+        .eq('id', matchId);
+
+      if (error) {
+        toast.error('Failed to postpone match');
+        return;
+      }
+
       setPostponedMatches([...postponedMatches, { ...match, originalRound: roundNumber, includeInRound: false }]);
-      // Remove from current round
       setMatches(matches.filter(m => m.id !== matchId));
       setPostponeDialog({ open: false, matchId: null });
       toast.success(`Match moved to postponed games (from Round ${roundNumber})`);
     }
   };
 
-  const handleDeleteMatch = (matchId: number) => {
+  const handleDeleteMatch = async (matchId: string) => {
+    const { error } = await supabase.from('matches').delete().eq('id', matchId);
+    if (error) {
+      toast.error('Failed to delete match');
+      return;
+    }
     setMatches(matches.filter(m => m.id !== matchId));
     setDeleteDialog({ open: false, matchId: null });
     toast.success('Match deleted');
   };
 
-  const handleAddMatch = () => {
+  const handleAddMatch = async () => {
     if (!newHomeTeam || !newAwayTeam) {
       toast.error('Please select both teams');
       return;
     }
-    const home = allTeams.find(t => t.short === newHomeTeam);
-    const away = allTeams.find(t => t.short === newAwayTeam);
+    if (!isPostponed && !roundId) {
+      toast.error('Please save the round first');
+      return;
+    }
+
+    const home = allTeams.find(t => t.id === newHomeTeam);
+    const away = allTeams.find(t => t.id === newAwayTeam);
     if (home && away) {
+      const { data: inserted, error } = await supabase
+        .from('matches')
+        .insert({
+          home_team_id: home.id,
+          away_team_id: away.id,
+          kickoff: new Date(deadline).toISOString(),
+          include_in_round: true,
+          round_id: isPostponed ? null : roundId,
+          status: isPostponed ? 'postponed' : 'scheduled',
+          is_match_of_the_week: false,
+        })
+        .select('id,home_team_id,away_team_id,kickoff,include_in_round,result,is_match_of_the_week')
+        .single();
+
+      if (error || !inserted) {
+        toast.error('Failed to add match');
+        return;
+      }
+
       const newMatch = {
-        id: matches.length > 0 ? Math.max(...matches.map(m => m.id)) + 1 : 1,
+        id: inserted.id,
+        homeTeamId: inserted.home_team_id,
+        awayTeamId: inserted.away_team_id,
         homeTeam: home.name,
-        homeShort: home.short,
+        homeShort: home.short_name,
         awayTeam: away.name,
-        awayShort: away.short,
-        kickoff: deadline,
-        includeInRound: true,
-        result: null,
+        awayShort: away.short_name,
+        kickoff: toInputDateTime(inserted.kickoff),
+        includeInRound: inserted.include_in_round,
+        result: inserted.result,
+        isMatchOfTheWeek: inserted.is_match_of_the_week,
       };
+
       setMatches([...matches, newMatch]);
       setNewHomeTeam('');
       setNewAwayTeam('');
@@ -148,23 +283,52 @@ export default function AdminRoundV1() {
     }
   };
 
-  const handleMatchUpdate = (matchId: number, field: string, value: any) => {
+  const handleMatchUpdate = (matchId: string, field: string, value: any) => {
     setMatches(matches.map(m => m.id === matchId ? { ...m, [field]: value } : m));
   };
 
-  const handlePublish = () => {
+  const handlePublish = async () => {
     if (isNew && !isPostponed && !roundNumberInput.trim()) {
       toast.error('Please enter a round number');
       return;
     }
-    
-    // Check if there's already an active round
-    const hasActiveRound = true; // In real app, check if round 16 is active
-    if (hasActiveRound && status === 'scheduled' && roundNumber !== '16') {
-      setPublishWarning(true);
-      return;
+
+    if (!roundId && !isPostponed) {
+      if (!competitionId) {
+        toast.error('No active competition found');
+        return;
+      }
+
+      const { data: created, error } = await supabase
+        .from('rounds')
+        .insert({
+          competition_id: competitionId,
+          round_number: parseInt(roundNumberInput, 10),
+          round_type: 'regular',
+          deadline: new Date(deadline).toISOString(),
+          status: 'published',
+        })
+        .select('id')
+        .single();
+
+      if (error || !created) {
+        toast.error('Failed to publish round');
+        return;
+      }
+
+      setRoundId(created.id);
+    } else if (roundId) {
+      const { error } = await supabase
+        .from('rounds')
+        .update({ status: 'published' })
+        .eq('id', roundId);
+
+      if (error) {
+        toast.error('Failed to publish round');
+        return;
+      }
     }
-    
+
     setStatus('active');
     toast.success('Round published and active for players');
     
@@ -206,12 +370,23 @@ export default function AdminRoundV1() {
     setLocation('/version1/admin');
   };
 
-  const handleUnpublish = () => {
+  const handleUnpublish = async () => {
+    if (roundId) {
+      const { error } = await supabase
+        .from('rounds')
+        .update({ status: 'scheduled' })
+        .eq('id', roundId);
+
+      if (error) {
+        toast.error('Failed to unpublish round');
+        return;
+      }
+    }
     setStatus('scheduled');
     toast.success('Round unpublished');
   };
 
-  const handleSetFinal = () => {
+  const handleSetFinal = async () => {
     // Check if all matches have results
     const matchesWithResults = matches.filter(m => m.includeInRound && m.result);
     const totalMatches = matches.filter(m => m.includeInRound).length;
@@ -222,6 +397,18 @@ export default function AdminRoundV1() {
       return;
     }
     
+    if (roundId) {
+      const { error } = await supabase
+        .from('rounds')
+        .update({ status: 'final' })
+        .eq('id', roundId);
+
+      if (error) {
+        toast.error('Failed to set round final');
+        return;
+      }
+    }
+
     setStatus('final');
     setSetFinalError('');
     toast.success('Round set to final, results published');
@@ -259,11 +446,77 @@ export default function AdminRoundV1() {
     }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (isNew && !isPostponed && !roundNumberInput.trim()) {
       toast.error('Please enter a round number');
       return;
     }
+    if (!isPostponed) {
+      if (!competitionId) {
+        toast.error('No active competition found');
+        return;
+      }
+
+      let currentRoundId = roundId;
+      if (!currentRoundId) {
+        const { data: created, error } = await supabase
+          .from('rounds')
+          .insert({
+            competition_id: competitionId,
+            round_number: parseInt(roundNumberInput, 10),
+            round_type: 'regular',
+            deadline: new Date(deadline).toISOString(),
+            status: 'scheduled',
+          })
+          .select('id')
+          .single();
+
+        if (error || !created) {
+          toast.error('Failed to save round');
+          return;
+        }
+
+        currentRoundId = created.id;
+        setRoundId(created.id);
+      } else {
+        const { error } = await supabase
+          .from('rounds')
+          .update({ deadline: new Date(deadline).toISOString() })
+          .eq('id', currentRoundId);
+
+        if (error) {
+          toast.error('Failed to update round');
+          return;
+        }
+      }
+
+      await Promise.all(
+        matches.map((match) =>
+          supabase
+            .from('matches')
+            .update({
+              kickoff: new Date(match.kickoff).toISOString(),
+              include_in_round: match.includeInRound,
+              result: match.result,
+              is_match_of_the_week: matchOfTheWeek === match.id,
+            })
+            .eq('id', match.id)
+        )
+      );
+    } else {
+      await Promise.all(
+        matches.map((match) =>
+          supabase
+            .from('matches')
+            .update({
+              kickoff: new Date(match.kickoff).toISOString(),
+              result: match.result,
+            })
+            .eq('id', match.id)
+        )
+      );
+    }
+
     toast.success('Changes saved');
   };
 
@@ -304,6 +557,24 @@ export default function AdminRoundV1() {
           </Badge>
         </div>
       </div>
+
+      {!isPostponed && (
+        <div className="bg-slate-900 border border-slate-800 rounded-lg p-6 mb-6">
+          <h2 className="text-xl font-bold text-white mb-4">Round Details</h2>
+          <div className="max-w-md">
+            <Label className="text-slate-300 mb-2 block">Round Number</Label>
+            <Input
+              type="number"
+              min={1}
+              value={roundNumberInput}
+              onChange={(e) => setRoundNumberInput(e.target.value)}
+              disabled={!isNew && status !== 'scheduled'}
+              placeholder="e.g., 1"
+              className="bg-slate-800 border-slate-700 text-white"
+            />
+          </div>
+        </div>
+      )}
 
       {/* Deadline */}
       <div className="bg-slate-900 border border-slate-800 rounded-lg p-6 mb-6">
@@ -362,8 +633,8 @@ export default function AdminRoundV1() {
                   </SelectTrigger>
                   <SelectContent className="bg-slate-800 border-slate-700">
                     {allTeams.map(team => (
-                      <SelectItem key={team.short} value={team.short} className="text-white focus:bg-slate-700 focus:text-white">
-                        {team.name} ({team.short})
+                      <SelectItem key={team.id} value={team.id} className="text-white focus:bg-slate-700 focus:text-white">
+                        {team.name} ({team.short_name})
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -377,8 +648,8 @@ export default function AdminRoundV1() {
                   </SelectTrigger>
                   <SelectContent className="bg-slate-800 border-slate-700">
                     {allTeams.map(team => (
-                      <SelectItem key={team.short} value={team.short} className="text-white focus:bg-slate-700 focus:text-white">
-                        {team.name} ({team.short})
+                      <SelectItem key={team.id} value={team.id} className="text-white focus:bg-slate-700 focus:text-white">
+                        {team.name} ({team.short_name})
                       </SelectItem>
                     ))}
                   </SelectContent>
