@@ -1,10 +1,65 @@
+import { useEffect, useMemo, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { TrendingUp, TrendingDown, Award } from 'lucide-react';
-import { bestRounds, worstRounds } from '@/mockData';
 import LayoutV1 from './Layout';
+import { supabase } from '@/lib/supabase';
+
+type RoundEntry = {
+  rank: number;
+  userName: string;
+  roundNumber: number;
+  points: number;
+  correct: number;
+  bankerCorrect: boolean | null;
+};
 
 export default function StatsV1() {
+  const [loading, setLoading] = useState(true);
+  const [entries, setEntries] = useState<RoundEntry[]>([]);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      setLoading(true);
+
+      const { data } = await supabase
+        .from('round_stats')
+        .select('total_points,correct_predictions,banker_correct, round:round_id(round_number), user:user_id(name)');
+
+      const mapped = (data || []).map((row: any) => {
+        const round = Array.isArray(row.round) ? row.round[0] : row.round;
+        const user = Array.isArray(row.user) ? row.user[0] : row.user;
+        return {
+          rank: 0,
+          userName: user?.name || 'Player',
+          roundNumber: round?.round_number || 0,
+          points: row.total_points || 0,
+          correct: row.correct_predictions || 0,
+          bankerCorrect: row.banker_correct ?? null,
+        };
+      });
+
+      setEntries(mapped);
+      setLoading(false);
+    };
+
+    fetchStats();
+  }, []);
+
+  const bestRounds = useMemo(() => {
+    return [...entries]
+      .sort((a, b) => b.points - a.points)
+      .slice(0, 10)
+      .map((entry, index) => ({ ...entry, rank: index + 1 }));
+  }, [entries]);
+
+  const worstRounds = useMemo(() => {
+    return [...entries]
+      .sort((a, b) => a.points - b.points)
+      .slice(0, 10)
+      .map((entry, index) => ({ ...entry, rank: index + 1 }));
+  }, [entries]);
+
   return (
     <LayoutV1>
       <div className="mb-8">
@@ -12,7 +67,24 @@ export default function StatsV1() {
         <p className="text-slate-400 text-sm">Top performances and records</p>
       </div>
 
-      <div className="grid gap-6 sm:gap-8">
+      {loading && (
+        <div className="min-h-50 flex items-center justify-center">
+          <div className="text-center">
+            <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+            <p className="text-slate-400">Loading stats...</p>
+          </div>
+        </div>
+      )}
+
+      {!loading && entries.length === 0 && (
+        <div className="bg-slate-900 border border-slate-800 rounded-lg p-6">
+          <div className="text-white text-lg font-semibold mb-2">No stats yet</div>
+          <div className="text-slate-400">Finalize rounds to see performance stats.</div>
+        </div>
+      )}
+
+      {!loading && entries.length > 0 && (
+        <div className="grid gap-6 sm:gap-8">
         {/* Hall of Fame */}
         <Card className="bg-slate-900 border-slate-800 p-4 sm:p-6">
           <div className="flex items-center gap-3 mb-6">
@@ -48,7 +120,7 @@ export default function StatsV1() {
                   <span className="text-slate-400">Round {entry.roundNumber}</span>
                   <div className="flex items-center gap-3">
                     <span className="text-slate-400">{entry.correct} correct</span>
-                    <span className="text-green-400 text-lg">✓</span>
+                    <span className="text-green-400 text-lg">{entry.bankerCorrect ? '✓' : '—'}</span>
                   </div>
                 </div>
               </div>
@@ -84,7 +156,7 @@ export default function StatsV1() {
                     <td className="text-right font-bold text-green-400 py-3">{entry.points}</td>
                     <td className="text-right text-slate-300 py-3">{entry.correct}</td>
                     <td className="text-center py-3">
-                      <span className="text-green-400 text-xl">✓</span>
+                      <span className="text-green-400 text-xl">{entry.bankerCorrect ? '✓' : '—'}</span>
                     </td>
                   </tr>
                 ))}
@@ -125,7 +197,7 @@ export default function StatsV1() {
                   <span className="text-slate-400">Round {entry.roundNumber}</span>
                   <div className="flex items-center gap-3">
                     <span className="text-slate-400">{entry.correct} correct</span>
-                    <span className="text-red-400 text-lg">✗</span>
+                    <span className="text-red-400 text-lg">{entry.bankerCorrect === false ? '✗' : '—'}</span>
                   </div>
                 </div>
               </div>
@@ -156,7 +228,7 @@ export default function StatsV1() {
                     <td className="text-right font-bold text-red-400 py-3">{entry.points}</td>
                     <td className="text-right text-slate-300 py-3">{entry.correct}</td>
                     <td className="text-center py-3">
-                      <span className="text-red-400 text-xl">✗</span>
+                      <span className="text-red-400 text-xl">{entry.bankerCorrect === false ? '✗' : '—'}</span>
                     </td>
                   </tr>
                 ))}
@@ -165,6 +237,7 @@ export default function StatsV1() {
           </div>
         </Card>
       </div>
+      )}
     </LayoutV1>
   );
 }

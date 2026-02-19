@@ -1,17 +1,38 @@
+import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import { Home, Trophy, List, BarChart3, Settings, Target, LogOut } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { competitions } from '@/mockData';
 import { useAuth } from '@/contexts/AuthContext';
 import hubLogo from '@/assets/images/hub-logo.png';
+import { supabase } from '@/lib/supabase';
 
 export default function LayoutV1({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const { user, signOut } = useAuth();
+  const [competitions, setCompetitions] = useState<any[]>([]);
+  const [selectedCompetition, setSelectedCompetition] = useState('');
+
+  useEffect(() => {
+    const fetchCompetitions = async () => {
+      const { data } = await supabase
+        .from('competitions')
+        .select('id,name,is_active')
+        .order('created_at', { ascending: true });
+
+      const list = data || [];
+      setCompetitions(list);
+      const active = list.find((comp) => comp.is_active) || list[0];
+      if (active) {
+        setSelectedCompetition(active.id);
+      }
+    };
+
+    fetchCompetitions();
+  }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
+    <div className="min-h-screen bg-linear-to-br from-slate-950 via-slate-900 to-slate-950">
       {/* Header */}
       <header className="bg-slate-900/50 backdrop-blur-sm border-b border-slate-800 sticky top-0 z-50">
         <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4">
@@ -29,8 +50,8 @@ export default function LayoutV1({ children }: { children: React.ReactNode }) {
             </Link>
 
             {/* Competition Selector - Hidden on small mobile */}
-            <div className="hidden sm:block flex-1 max-w-[200px] md:max-w-[240px]">
-              <Select defaultValue={competitions[0].id}>
+            <div className="hidden sm:block flex-1 max-w-50 md:max-w-60">
+              <Select value={selectedCompetition} onValueChange={setSelectedCompetition}>
                 <SelectTrigger className="w-full bg-slate-800 border-slate-700 text-white text-sm">
                   <SelectValue />
                 </SelectTrigger>
@@ -87,13 +108,13 @@ function NavLink({ href, icon: Icon, label, active }: { href: string; icon: any;
   return (
     <Link href={href}>
       <a
-        className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-2 sm:px-3 md:px-4 py-2 sm:py-3 rounded-t-lg transition-colors whitespace-nowrap flex-shrink-0 ${
+        className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-2 sm:px-3 md:px-4 py-2 sm:py-3 rounded-t-lg transition-colors whitespace-nowrap shrink-0 ${
           active
             ? 'bg-slate-800 text-white border-b-2 border-blue-500'
             : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
         }`}
       >
-        <Icon className="w-4 h-4 flex-shrink-0" />
+        <Icon className="w-4 h-4 shrink-0" />
         <span className="text-[10px] sm:text-sm font-medium">{label}</span>
       </a>
     </Link>

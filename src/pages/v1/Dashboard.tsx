@@ -1,35 +1,107 @@
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Clock, TrendingUp, TrendingDown, CheckCircle, XCircle, Target, Award, BarChart3 } from 'lucide-react';
+import { Clock, TrendingUp, TrendingDown, CheckCircle, XCircle, Target, BarChart3 } from 'lucide-react';
 import { Link } from 'wouter';
-import { currentRound } from '@/mockData';
 import LayoutV1 from './Layout';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { formatTimeRemainingCompact } from '@/lib/timeUtils';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function DashboardV1() {
-  // Mock data
-  const userPosition = 3;
-  const userPoints = 142;
-  const positionChange = 2; // positive = up, negative = down
-  
-  // DEMO: Select different statuses to see how the page changes
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(true);
   const [roundStatus, setRoundStatus] = useState<'open' | 'locked' | 'active' | 'completed' | 'final'>('open');
-  const predictionsComplete = false;
-  
-  // Last round data
-  const lastRoundPoints = 18;
-  const lastRoundPositionChange = 2;
-  const lastRoundBankerSuccess = true;
-  
-  // Season stats
-  const totalPoints = 142;
-  const predictionAccuracy = 68;
-  const bankerSuccessRate = 55;
+  const [currentRoundNumber, setCurrentRoundNumber] = useState<number | null>(null);
+  const [timeRemaining, setTimeRemaining] = useState('');
+  const [userPosition, setUserPosition] = useState<number | null>(null);
+  const [userPoints, setUserPoints] = useState<number>(0);
+  const [positionChange, setPositionChange] = useState(0);
+  const [lastRoundPoints, setLastRoundPoints] = useState<number | null>(null);
+  const [lastRoundPositionChange, setLastRoundPositionChange] = useState<number | null>(null);
+  const [lastRoundBankerSuccess, setLastRoundBankerSuccess] = useState<boolean | null>(null);
 
-  const timeRemaining = formatTimeRemainingCompact(currentRound.deadline);
+  const [totalPoints, setTotalPoints] = useState(0);
+  const [predictionAccuracy, setPredictionAccuracy] = useState(0);
+  const [bankerSuccessRate, setBankerSuccessRate] = useState(0);
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      if (!user) {
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
+
+      const { data: roundRow } = await supabase
+        .from('rounds')
+        .select('id,round_number,deadline,status')
+        .eq('status', 'published')
+        .order('round_number', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (roundRow) {
+        setCurrentRoundNumber(roundRow.round_number);
+        const deadline = new Date(roundRow.deadline);
+        const isLocked = deadline.getTime() < Date.now();
+        setRoundStatus(isLocked ? 'locked' : 'open');
+        setTimeRemaining(formatTimeRemainingCompact(deadline));
+      } else {
+        const { data: finalRound } = await supabase
+          .from('rounds')
+          .select('round_number')
+          .eq('status', 'final')
+          .order('round_number', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        setCurrentRoundNumber(finalRound?.round_number || null);
+        setRoundStatus(finalRound ? 'final' : 'open');
+      }
+
+      const { data: leaderboardRow } = await supabase
+        .from('leaderboard')
+        .select('total_points,current_rank,correct_predictions,banker_success,banker_fail,rounds_played')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (leaderboardRow) {
+        setUserPosition(leaderboardRow.current_rank || null);
+        setUserPoints(leaderboardRow.total_points || 0);
+        setTotalPoints(leaderboardRow.total_points || 0);
+        const roundsPlayed = leaderboardRow.rounds_played || 0;
+        setPredictionAccuracy(roundsPlayed > 0 ? Math.round((leaderboardRow.correct_predictions || 0) / roundsPlayed) : 0);
+        const bankerTotal = (leaderboardRow.banker_success || 0) + (leaderboardRow.banker_fail || 0);
+        setBankerSuccessRate(bankerTotal > 0 ? Math.round(((leaderboardRow.banker_success || 0) / bankerTotal) * 100) : 0);
+      }
+
+      const { data: lastRound } = await supabase
+        .from('rounds')
+        .select('id')
+        .eq('status', 'final')
+        .order('round_number', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (lastRound?.id) {
+        const { data: statRow } = await supabase
+          .from('round_stats')
+          .select('total_points,rank')
+          .eq('round_id', lastRound.id)
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        setLastRoundPoints(statRow?.total_points ?? null);
+        setLastRoundPositionChange(statRow?.rank ?? null);
+      }
+
+      setLoading(false);
+    };
+
+    fetchDashboardData();
+  }, [user]);
 
   const getActionButton = () => {
     if (roundStatus === 'open') {
@@ -64,34 +136,14 @@ export default function DashboardV1() {
 
   return (
     <LayoutV1>
-      {/* DEMO: Status Selector */}
-      <Card className="bg-yellow-500/10 border-yellow-500/30 p-4 mb-6">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-          <div className="flex-1">
-            <div className="text-yellow-400 font-semibold text-sm mb-1">🎭 DEMO MODE</div>
-            <div className="text-slate-300 text-sm">Select a round status to see how the "Current Round" card changes:</div>
+      {loading && (
+        <div className="min-h-50 flex items-center justify-center mb-6">
+          <div className="text-center">
+            <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+            <p className="text-slate-400">Loading dashboard...</p>
           </div>
-          <Select value={roundStatus} onValueChange={(value: any) => setRoundStatus(value)}>
-            <SelectTrigger className="w-[200px] bg-slate-800 border-slate-700 text-white">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent className="bg-slate-800 border-slate-700">
-              <SelectItem value="open" className="text-white focus:bg-slate-700 focus:text-white">
-                Open (Before deadline)
-              </SelectItem>
-              <SelectItem value="active" className="text-white focus:bg-slate-700 focus:text-white">
-                Active (In progress)
-              </SelectItem>
-              <SelectItem value="completed" className="text-white focus:bg-slate-700 focus:text-white">
-                Completed (Finished)
-              </SelectItem>
-              <SelectItem value="final" className="text-white focus:bg-slate-700 focus:text-white">
-                Final (Results published)
-              </SelectItem>
-            </SelectContent>
-          </Select>
         </div>
-      </Card>
+      )}
 
       {/* Top Row - Current Round & Position */}
       <div className="grid sm:grid-cols-2 gap-4 mb-4">
@@ -101,7 +153,7 @@ export default function DashboardV1() {
             <div>
               <div className="text-slate-400 text-xs mb-1">Current Round</div>
               <div className="flex items-center gap-2">
-                <h2 className="text-xl font-bold text-white">Round {currentRound.number}</h2>
+                <h2 className="text-xl font-bold text-white">Round {currentRoundNumber ?? '—'}</h2>
                 <Badge
                   className={
                     roundStatus === 'open'
@@ -184,7 +236,7 @@ export default function DashboardV1() {
           <div className="flex flex-col">
             <div className="text-slate-400 text-xs mb-1">Your Current Position</div>
             <div className="flex items-center gap-2">
-              <div className="text-3xl font-bold text-white">#{userPosition}</div>
+              <div className="text-3xl font-bold text-white">{userPosition ? `#${userPosition}` : '—'}</div>
               {positionChange !== 0 && (
                 <div className={`flex items-center gap-1 ${positionChange > 0 ? 'text-green-400' : 'text-red-400'}`}>
                   {positionChange > 0 ? (
@@ -215,7 +267,7 @@ export default function DashboardV1() {
           <div className="space-y-3">
             <div>
               <div className="text-slate-400 text-xs mb-1">Points Scored</div>
-              <div className="text-2xl font-bold text-white">{lastRoundPoints}</div>
+              <div className="text-2xl font-bold text-white">{lastRoundPoints ?? '—'}</div>
             </div>
             
             <div className="flex items-center justify-between pt-3 border-t border-slate-800">
@@ -241,7 +293,9 @@ export default function DashboardV1() {
               <div>
                 <div className="text-slate-400 text-xs mb-1">Banker Result</div>
                 <div className="flex items-center gap-1">
-                  {lastRoundBankerSuccess ? (
+                  {lastRoundBankerSuccess === null ? (
+                    <span className="text-base font-semibold text-slate-400">—</span>
+                  ) : lastRoundBankerSuccess ? (
                     <>
                       <CheckCircle className="w-4 h-4 text-green-400" />
                       <span className="text-base font-semibold text-green-400">Success</span>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRoute, Link } from 'wouter';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -6,42 +6,162 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ChevronLeft, Star } from 'lucide-react';
-import { matches, currentRound, users, currentUser } from '@/mockData';
 import { MatchResult } from '@/types';
 import LayoutV1 from './Layout';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
+
+type RoundInfo = {
+  id: string;
+  number: number;
+};
+
+type MatchRow = {
+  id: string;
+  result: MatchResult | null;
+  isMatchOfTheWeek: boolean;
+  homeTeam: { name: string; shortName: string };
+  awayTeam: { name: string; shortName: string };
+};
+
+type UserRow = {
+  id: string;
+  name: string;
+};
+
+type PredictionRow = {
+  matchId: string;
+  userId: string;
+  prediction: MatchResult;
+  isBanker: boolean;
+};
 
 export default function CompareRoundV1() {
+  const { user } = useAuth();
   const [, params] = useRoute('/version1/compare/:status');
   const status = (params?.status as 'locked' | 'final') || 'locked';
-  
-  // Select first non-current user as default comparison
-  const otherUsers = users.filter(u => u.id !== currentUser.id);
-  const [selectedUserId, setSelectedUserId] = useState(otherUsers[0]?.id || '');
-  
+
+  const [loading, setLoading] = useState(true);
+  const [round, setRound] = useState<RoundInfo | null>(null);
+  const [matches, setMatches] = useState<MatchRow[]>([]);
+  const [users, setUsers] = useState<UserRow[]>([]);
+  const [predictions, setPredictions] = useState<PredictionRow[]>([]);
+  const [selectedUserId, setSelectedUserId] = useState('');
+
   const isLocked = status === 'locked' || status === 'final';
   const isFinal = status === 'final';
-  const regularMatches = matches.filter(m => m.includeInRound);
 
-  // Mock results ONLY for final state
-  const matchesWithResults = regularMatches.map((match, idx) => ({
+  useEffect(() => {
+    const fetchCompareData = async () => {
+      setLoading(true);
+
+      const roundStatus = isFinal ? 'final' : 'published';
+      const { data: roundRow } = await supabase
+        .from('rounds')
+        .select('id,round_number')
+        .eq('status', roundStatus)
+        .order('round_number', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!roundRow) {
+        setRound(null);
+        setMatches([]);
+        setUsers([]);
+        setPredictions([]);
+        setLoading(false);
+        return;
+      }
+
+      setRound({ id: roundRow.id, number: roundRow.round_number });
+
+      const { data: matchRows } = await supabase
+        .from('matches')
+        .select('id,result,include_in_round,is_match_of_the_week,home_team:home_team_id(name,short_name),away_team:away_team_id(name,short_name)')
+        .eq('round_id', roundRow.id)
+        .eq('include_in_round', true)
+        .order('kickoff', { ascending: true });
+
+      const formattedMatches = (matchRows || []).map((match: any) => {
+        const homeTeam = Array.isArray(match.home_team) ? match.home_team[0] : match.home_team;
+        const awayTeam = Array.isArray(match.away_team) ? match.away_team[0] : match.away_team;
+        return {
+          id: match.id,
+          result: match.result,
+          isMatchOfTheWeek: match.is_match_of_the_week,
+          homeTeam: {
+            name: homeTeam?.name || 'Home',
+            shortName: homeTeam?.short_name || '',
+          },
+          awayTeam: {
+            name: awayTeam?.name || 'Away',
+            shortName: awayTeam?.short_name || '',
+          },
+        };
+      });
+
+      setMatches(formattedMatches);
+
+      const { data: userRows } = await supabase
+        .from('users')
+        .select('id,name')
+        .order('name', { ascending: true });
+
+      setUsers(userRows || []);
+
+      const { data: predictionRows } = await supabase
+        .from('predictions')
+        .select('match_id,user_id,prediction,is_banker')
+        .eq('round_id', roundRow.id);
+
+      const formattedPredictions = (predictionRows || []).map((row: any) => ({
+        matchId: row.match_id,
+        userId: row.user_id,
+        prediction: row.prediction as MatchResult,
+        isBanker: row.is_banker === true,
+      }));
+
+      setPredictions(formattedPredictions);
+      setLoading(false);
+    };
+
+    fetchCompareData();
+  }, [isFinal]);
+
+  useEffect(() => {
+    const otherUsers = users.filter((item) => item.id !== user?.id);
+    if (!selectedUserId && otherUsers.length > 0) {
+      setSelectedUserId(otherUsers[0].id);
+    }
+  }, [users, user?.id, selectedUserId]);
+
+  const matchesWithResults = matches.map((match) => ({
     ...match,
-    result: isFinal ? (['H', 'B', 'U', 'H', 'B', 'H', 'U', 'B'][idx] as MatchResult) : null,
+    result: isFinal ? match.result : null,
   }));
 
-  // Mock all players' predictions
-  const allPlayersPredictions = users.map((user, idx) => ({
-    userId: user.id,
-    userName: user.name,
-    picks: regularMatches.map((_, matchIdx) => {
-      const options: MatchResult[] = ['H', 'U', 'B'];
-      return options[(idx + matchIdx) % 3];
-    }),
-    conviction: idx % regularMatches.length,
-  }));
+  const predictionMap = useMemo(() => {
+    const map = new Map<string, { picks: Record<string, MatchResult>; banker: string | null }>();
+    predictions.forEach((row) => {
+      if (!map.has(row.userId)) {
+        map.set(row.userId, { picks: {}, banker: null });
+      }
+      const entry = map.get(row.userId);
+      if (entry) {
+        entry.picks[row.matchId] = row.prediction;
+        if (row.isBanker) {
+          entry.banker = row.matchId;
+        }
+      }
+    });
+    return map;
+  }, [predictions]);
 
-  const myPredictions = allPlayersPredictions.find(p => p.userId === currentUser.id);
-  const selectedUserPredictions = allPlayersPredictions.find(p => p.userId === selectedUserId);
-  const selectedUser = users.find(u => u.id === selectedUserId);
+  const selectedUser = users.find((item) => item.id === selectedUserId);
+  const myData = user ? predictionMap.get(user.id) : null;
+  const otherData = selectedUserId ? predictionMap.get(selectedUserId) : null;
+
+  const otherUsers = users.filter((item) => item.id !== user?.id);
 
   return (
     <LayoutV1>
@@ -53,14 +173,31 @@ export default function CompareRoundV1() {
           </Button>
         </Link>
         <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">Compare Predictions</h1>
-        <p className="text-slate-400 text-sm">Round {currentRound.number} - Side by side comparison</p>
+        <p className="text-slate-400 text-sm">Round {round?.number ?? '—'} - Side by side comparison</p>
       </div>
 
+      {loading && (
+        <div className="min-h-50 flex items-center justify-center">
+          <div className="text-center">
+            <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+            <p className="text-slate-400">Loading comparisons...</p>
+          </div>
+        </div>
+      )}
+
+      {!loading && !round && (
+        <Card className="bg-slate-900 border-slate-800 p-6">
+          <div className="text-white text-lg font-semibold mb-2">No round available</div>
+          <div className="text-slate-400">Publish or finalize a round to compare predictions.</div>
+        </Card>
+      )}
+
       {/* Player Selector */}
-      <Card className="bg-slate-900 border-slate-800 p-4 sm:p-6 mb-6">
+      {!loading && round && (
+        <Card className="bg-slate-900 border-slate-800 p-4 sm:p-6 mb-6">
         <label className="text-slate-400 text-sm mb-2 block">Compare with:</label>
         <Select value={selectedUserId} onValueChange={setSelectedUserId}>
-          <SelectTrigger className="w-full sm:w-[280px] bg-slate-800 border-slate-700 text-white">
+          <SelectTrigger className="w-full sm:w-70 bg-slate-800 border-slate-700 text-white">
             <SelectValue placeholder="Select a player" />
           </SelectTrigger>
           <SelectContent>
@@ -72,14 +209,16 @@ export default function CompareRoundV1() {
           </SelectContent>
         </Select>
       </Card>
+      )}
 
       {/* Comparison Cards - Mobile */}
-      <div className="sm:hidden space-y-3">
+      {!loading && round && (
+        <div className="sm:hidden space-y-3">
         {matchesWithResults.map((match, idx) => {
-          const myPick = myPredictions?.picks[idx];
-          const myConviction = myPredictions?.conviction === idx;
-          const theirPick = selectedUserPredictions?.picks[idx];
-          const theirConviction = selectedUserPredictions?.conviction === idx;
+          const myPick = myData?.picks[match.id];
+          const myConviction = myData?.banker === match.id;
+          const theirPick = otherData?.picks[match.id];
+          const theirConviction = otherData?.banker === match.id;
           const myCorrect = isFinal && match.result && myPick === match.result;
           const theirCorrect = isFinal && match.result && theirPick === match.result;
 
@@ -122,7 +261,7 @@ export default function CompareRoundV1() {
                           : 'bg-slate-700 text-slate-300'
                       }`}
                     >
-                      {myPick}
+                      {myPick || '—'}
                     </Badge>
                   </div>
 
@@ -141,7 +280,7 @@ export default function CompareRoundV1() {
                           : 'bg-slate-700 text-slate-300'
                       }`}
                     >
-                      {theirPick}
+                      {theirPick || '—'}
                     </Badge>
                   </div>
                 </div>
@@ -150,18 +289,20 @@ export default function CompareRoundV1() {
           );
         })}
       </div>
+      )}
 
       {/* Comparison Table - Desktop */}
-      <Card className="hidden sm:block bg-slate-900 border-slate-800 p-6">
+      {!loading && round && (
+        <Card className="hidden sm:block bg-slate-900 border-slate-800 p-6">
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow className="border-slate-800 hover:bg-transparent">
-                <TableHead className="text-slate-400 font-semibold min-w-[180px]">Match</TableHead>
+                <TableHead className="text-slate-400 font-semibold min-w-45">Match</TableHead>
                 <TableHead className="text-slate-400 font-semibold text-center w-24">
                   <div className="flex flex-col items-center gap-1">
                     <span>You</span>
-                    <span className="text-xs text-blue-400">({currentUser.name})</span>
+                    <span className="text-xs text-blue-400">({user?.name || 'You'})</span>
                   </div>
                 </TableHead>
                 {isFinal && (
@@ -176,10 +317,10 @@ export default function CompareRoundV1() {
             </TableHeader>
             <TableBody>
               {matchesWithResults.map((match, idx) => {
-                const myPick = myPredictions?.picks[idx];
-                const myConviction = myPredictions?.conviction === idx;
-                const theirPick = selectedUserPredictions?.picks[idx];
-                const theirConviction = selectedUserPredictions?.conviction === idx;
+                const myPick = myData?.picks[match.id];
+                const myConviction = myData?.banker === match.id;
+                const theirPick = otherData?.picks[match.id];
+                const theirConviction = otherData?.banker === match.id;
                 const myCorrect = isFinal && match.result && myPick === match.result;
                 const theirCorrect = isFinal && match.result && theirPick === match.result;
 
@@ -200,7 +341,7 @@ export default function CompareRoundV1() {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center justify-center gap-1">
-                        {myConviction && <Star className="w-3 h-3 text-blue-400 fill-current flex-shrink-0" />}
+                        {myConviction && <Star className="w-3 h-3 text-blue-400 fill-current shrink-0" />}
                         <span
                           className={`font-semibold text-base ${
                             isFinal && myCorrect
@@ -210,7 +351,7 @@ export default function CompareRoundV1() {
                               : 'text-slate-300'
                           }`}
                         >
-                          {myPick}
+                          {myPick || '—'}
                         </span>
                       </div>
                     </TableCell>
@@ -223,7 +364,7 @@ export default function CompareRoundV1() {
                     )}
                     <TableCell>
                       <div className="flex items-center justify-center gap-1">
-                        {theirConviction && <Star className="w-3 h-3 text-blue-400 fill-current flex-shrink-0" />}
+                        {theirConviction && <Star className="w-3 h-3 text-blue-400 fill-current shrink-0" />}
                         <span
                           className={`font-semibold text-base ${
                             isFinal && theirCorrect
@@ -233,7 +374,7 @@ export default function CompareRoundV1() {
                               : 'text-slate-300'
                           }`}
                         >
-                          {theirPick}
+                          {theirPick || '—'}
                         </span>
                       </div>
                     </TableCell>
@@ -244,6 +385,7 @@ export default function CompareRoundV1() {
           </Table>
         </div>
       </Card>
+      )}
     </LayoutV1>
   );
 }

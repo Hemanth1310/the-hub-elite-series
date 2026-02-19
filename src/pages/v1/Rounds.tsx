@@ -1,24 +1,205 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Trophy, Calendar, ChevronLeft, Star, Users } from 'lucide-react';
-import { pastRounds, round15Details, users, currentUser } from '@/mockData';
 import { Link } from 'wouter';
 import LayoutV1 from './Layout';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
+
+type RoundSummary = {
+  id: string;
+  roundNumber: number;
+  date: string;
+  winner: string;
+  averageScore: number;
+  totalPlayers: number;
+};
+
+type MatchDetail = {
+  id: string;
+  result: string | null;
+  isMatchOfTheWeek: boolean;
+  home: { name: string; shortName: string };
+  away: { name: string; shortName: string };
+};
+
+type PredictionRow = {
+  matchId: string;
+  userId: string;
+  prediction: string;
+  isBanker: boolean;
+  userName: string;
+};
 
 export default function RoundsV1() {
-  const [selectedRound, setSelectedRound] = useState<number | null>(null);
+  const { user } = useAuth();
+  const [selectedRoundId, setSelectedRoundId] = useState<string | null>(null);
+  const [selectedRoundNumber, setSelectedRoundNumber] = useState<number | null>(null);
+  const [rounds, setRounds] = useState<RoundSummary[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [roundLoading, setRoundLoading] = useState(false);
+  const [matches, setMatches] = useState<MatchDetail[]>([]);
+  const [predictions, setPredictions] = useState<PredictionRow[]>([]);
+  const [roundStats, setRoundStats] = useState<{
+    winner: string;
+    averageScore: number;
+    myRank: number | null;
+    myPoints: number | null;
+    totalPlayers: number;
+  } | null>(null);
 
-  if (selectedRound) {
-    const roundData = round15Details; // In production, fetch based on selectedRound
-    const roundInfo = pastRounds.find(r => r.roundNumber === selectedRound);
-    const myPrediction = roundData.predictions.find(p => p.userId === currentUser.id);
-    
-    // Calculate my rank
-    const sortedPredictions = [...roundData.predictions].sort((a, b) => b.points - a.points);
-    const myRank = sortedPredictions.findIndex(p => p.userId === currentUser.id) + 1;
+  useEffect(() => {
+    const fetchRounds = async () => {
+      setLoading(true);
+
+      const { data: roundRows } = await supabase
+        .from('rounds')
+        .select('id,round_number,deadline')
+        .eq('status', 'final')
+        .order('round_number', { ascending: false });
+
+      if (!roundRows || roundRows.length === 0) {
+        setRounds([]);
+        setLoading(false);
+        return;
+      }
+
+      const roundIds = roundRows.map((round) => round.id);
+
+      const { data: statRows } = await supabase
+        .from('round_stats')
+        .select('round_id,total_points,rank,user:user_id(name)')
+        .in('round_id', roundIds);
+
+      const statsByRound = new Map<string, { total: number; count: number; winner: string }>();
+
+      (statRows || []).forEach((stat: any) => {
+        const roundId = stat.round_id;
+        const existing = statsByRound.get(roundId) || { total: 0, count: 0, winner: '—' };
+        const userData = Array.isArray(stat.user) ? stat.user[0] : stat.user;
+        const winnerName = stat.rank === 1 && userData?.name ? userData.name : existing.winner;
+
+        statsByRound.set(roundId, {
+          total: existing.total + (stat.total_points || 0),
+          count: existing.count + 1,
+          winner: winnerName,
+        });
+      });
+
+      const summaries = roundRows.map((round) => {
+        const stats = statsByRound.get(round.id);
+        const averageScore = stats && stats.count > 0 ? stats.total / stats.count : 0;
+        return {
+          id: round.id,
+          roundNumber: round.round_number,
+          date: new Date(round.deadline).toLocaleDateString(),
+          winner: stats?.winner || '—',
+          averageScore,
+          totalPlayers: stats?.count || 0,
+        };
+      });
+
+      setRounds(summaries);
+      setLoading(false);
+    };
+
+    fetchRounds();
+  }, []);
+
+  useEffect(() => {
+    const fetchRoundDetails = async () => {
+      if (!selectedRoundId) {
+        setMatches([]);
+        setPredictions([]);
+        setRoundStats(null);
+        return;
+      }
+
+      setRoundLoading(true);
+
+      const { data: matchRows } = await supabase
+        .from('matches')
+        .select('id,result,is_match_of_the_week,home_team:home_team_id(name,short_name),away_team:away_team_id(name,short_name)')
+        .eq('round_id', selectedRoundId)
+        .order('kickoff', { ascending: true });
+
+      const formattedMatches = (matchRows || []).map((match: any) => {
+        const homeTeam = Array.isArray(match.home_team) ? match.home_team[0] : match.home_team;
+        const awayTeam = Array.isArray(match.away_team) ? match.away_team[0] : match.away_team;
+        return {
+          id: match.id,
+          result: match.result,
+          isMatchOfTheWeek: match.is_match_of_the_week,
+          home: {
+            name: homeTeam?.name || 'Home',
+            shortName: homeTeam?.short_name || '',
+          },
+          away: {
+            name: awayTeam?.name || 'Away',
+            shortName: awayTeam?.short_name || '',
+          },
+        };
+      });
+
+      setMatches(formattedMatches);
+
+      const { data: predictionRows } = await supabase
+        .from('predictions')
+        .select('match_id,user_id,prediction,is_banker,user:user_id(name)')
+        .eq('round_id', selectedRoundId);
+
+      const formattedPredictions = (predictionRows || []).map((row: any) => {
+        const userData = Array.isArray(row.user) ? row.user[0] : row.user;
+        return {
+          matchId: row.match_id,
+          userId: row.user_id,
+          prediction: row.prediction,
+          isBanker: row.is_banker === true,
+          userName: userData?.name || 'Player',
+        };
+      });
+
+      setPredictions(formattedPredictions);
+
+      const { data: statsRows } = await supabase
+        .from('round_stats')
+        .select('round_id,total_points,rank,user_id,user:user_id(name)')
+        .eq('round_id', selectedRoundId);
+
+      const totalPlayers = statsRows?.length || 0;
+      const averageScore = totalPlayers
+        ? (statsRows || []).reduce((sum: number, row: any) => sum + (row.total_points || 0), 0) / totalPlayers
+        : 0;
+      const winnerRow = (statsRows || []).find((row: any) => row.rank === 1);
+      const winnerUser = Array.isArray(winnerRow?.user) ? winnerRow?.user[0] : winnerRow?.user;
+      const myStat = (statsRows || []).find((row: any) => row.user_id === user?.id);
+
+      setRoundStats({
+        winner: winnerUser?.name || '—',
+        averageScore,
+        myRank: myStat?.rank || null,
+        myPoints: myStat?.total_points ?? null,
+        totalPlayers,
+      });
+
+      setRoundLoading(false);
+    };
+
+    fetchRoundDetails();
+  }, [selectedRoundId, user?.id]);
+
+  if (selectedRoundId && selectedRoundNumber) {
+    const roundInfo = rounds.find(r => r.roundNumber === selectedRoundNumber);
+    const myPredictions = predictions.filter(p => p.userId === user?.id);
+    const myPredictionMap = myPredictions.reduce<Record<string, string>>(
+      (acc, row) => ({ ...acc, [row.matchId]: row.prediction }),
+      {}
+    );
+    const bankerMatchId = myPredictions.find((row) => row.isBanker)?.matchId || null;
+    const myRank = roundStats?.myRank || null;
 
     return (
       <LayoutV1>
@@ -26,17 +207,20 @@ export default function RoundsV1() {
           <Button
             variant="ghost"
             className="mb-4 text-blue-400 hover:text-blue-300"
-            onClick={() => setSelectedRound(null)}
+            onClick={() => {
+              setSelectedRoundId(null);
+              setSelectedRoundNumber(null);
+            }}
           >
             <ChevronLeft className="w-4 h-4 mr-2" />
             Back to Rounds
           </Button>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-2">
             <div className="flex items-center gap-4">
-              <h1 className="text-2xl sm:text-3xl font-bold text-white">Round {selectedRound}</h1>
+              <h1 className="text-2xl sm:text-3xl font-bold text-white">Round {selectedRoundNumber}</h1>
               <Badge className="bg-slate-700 text-slate-300">FINAL</Badge>
             </div>
-            <Link href={`/version1/rounds/${selectedRound}/compare`}>
+            <Link href={`/version1/rounds/${selectedRoundNumber}/compare`}>
               <Button className="bg-blue-600 hover:bg-blue-700">
                 <Users className="w-4 h-4 mr-2" />
                 <span className="hidden sm:inline">Compare with Others</span>
@@ -47,15 +231,25 @@ export default function RoundsV1() {
           <p className="text-slate-400 text-sm">{roundInfo?.date}</p>
         </div>
 
+        {roundLoading && (
+          <div className="min-h-50 flex items-center justify-center">
+            <div className="text-center">
+              <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+              <p className="text-slate-400">Loading round...</p>
+            </div>
+          </div>
+        )}
+
         {/* My Performance - At Top */}
-        <Card className="bg-slate-900 border-slate-800 p-4 sm:p-6 mb-8">
+        {!roundLoading && (
+          <Card className="bg-slate-900 border-slate-800 p-4 sm:p-6 mb-8">
           <h2 className="text-xl font-bold text-white mb-4 sm:mb-6">My Performance</h2>
           
           {/* Mobile Card Layout */}
           <div className="sm:hidden space-y-3">
-            {roundData.matches.map((match, idx) => {
-              const myPick = myPrediction?.picks[idx];
-              const isConviction = myPrediction?.conviction === idx;
+            {matches.map((match) => {
+              const myPick = myPredictionMap[match.id];
+              const isConviction = bankerMatchId === match.id;
               const isCorrect = myPick === match.result;
               
               return (
@@ -86,7 +280,7 @@ export default function RoundsV1() {
                     <div className="flex items-center gap-2">
                       {isConviction && <Star className="w-3 h-3 text-blue-400 fill-current" />}
                       <span className={`font-semibold ${isCorrect ? 'text-green-400' : 'text-red-400'}`}>
-                        {myPick}
+                        {myPick || '—'}
                       </span>
                     </div>
                   </div>
@@ -95,7 +289,7 @@ export default function RoundsV1() {
             })}
             <div className="bg-slate-800 rounded-lg p-4 flex items-center justify-between">
               <span className="font-bold text-white">My Round Points</span>
-              <span className="font-bold text-lg text-blue-400">{myPrediction?.points}</span>
+              <span className="font-bold text-lg text-blue-400">{roundStats?.myPoints ?? '—'}</span>
             </div>
           </div>
 
@@ -104,16 +298,16 @@ export default function RoundsV1() {
             <Table>
               <TableHeader>
                 <TableRow className="border-slate-800 hover:bg-transparent">
-                  <TableHead className="text-slate-400 font-semibold min-w-[200px]">Match</TableHead>
+                  <TableHead className="text-slate-400 font-semibold min-w-50">Match</TableHead>
                   <TableHead className="text-slate-400 font-semibold text-center w-16">Result</TableHead>
                   <TableHead className="text-slate-400 font-semibold text-center w-20">My Pick</TableHead>
                   <TableHead className="text-slate-400 font-semibold text-center w-20">Conviction</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {roundData.matches.map((match, idx) => {
-                  const myPick = myPrediction?.picks[idx];
-                  const isConviction = myPrediction?.conviction === idx;
+                {matches.map((match) => {
+                  const myPick = myPredictionMap[match.id];
+                  const isConviction = bankerMatchId === match.id;
                   const isCorrect = myPick === match.result;
                   
                   return (
@@ -144,7 +338,7 @@ export default function RoundsV1() {
                       </TableCell>
                       <TableCell className="text-center">
                         <span className={`font-semibold ${isCorrect ? 'text-green-400' : 'text-red-400'}`}>
-                          {myPick}
+                          {myPick || '—'}
                         </span>
                       </TableCell>
                       <TableCell className="text-center">
@@ -157,7 +351,7 @@ export default function RoundsV1() {
                   <TableCell className="font-bold text-white" colSpan={3}>My Round Points</TableCell>
                   <TableCell className="text-center">
                     <span className="font-bold text-lg text-blue-400">
-                      {myPrediction?.points}
+                      {roundStats?.myPoints ?? '—'}
                     </span>
                   </TableCell>
                 </TableRow>
@@ -165,26 +359,29 @@ export default function RoundsV1() {
             </Table>
           </div>
         </Card>
+        )}
 
         {/* Round Summary - Now Below */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {!roundLoading && (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <Card className="bg-slate-900 border-slate-800 p-6">
             <div className="flex items-center gap-3 mb-2">
               <Trophy className="w-5 h-5 text-yellow-400" />
               <span className="text-slate-400 text-sm">Round Winner</span>
             </div>
-            <div className="text-2xl font-bold text-white">{roundInfo?.winner}</div>
+            <div className="text-2xl font-bold text-white">{roundStats?.winner || '—'}</div>
           </Card>
           <Card className="bg-slate-900 border-slate-800 p-6">
             <div className="text-slate-400 text-sm mb-2">My Round Rank</div>
-            <div className="text-2xl font-bold text-blue-400">#{myRank}</div>
-            <div className="text-sm text-slate-500 mt-1">of {roundData.predictions.length} players</div>
+            <div className="text-2xl font-bold text-blue-400">{myRank ? `#${myRank}` : '—'}</div>
+            <div className="text-sm text-slate-500 mt-1">of {roundStats?.totalPlayers ?? 0} players</div>
           </Card>
           <Card className="bg-slate-900 border-slate-800 p-6">
             <div className="text-slate-400 text-sm mb-2">Average Score</div>
-            <div className="text-2xl font-bold text-white">{roundInfo?.averageScore}</div>
+            <div className="text-2xl font-bold text-white">{(roundStats?.averageScore ?? 0).toFixed(1)}</div>
           </Card>
         </div>
+        )}
       </LayoutV1>
     );
   }
@@ -196,17 +393,37 @@ export default function RoundsV1() {
         <p className="text-slate-400 text-sm">View past rounds and results</p>
       </div>
 
-      <div className="grid gap-4">
-        {pastRounds.map(round => (
+      {loading && (
+        <div className="min-h-50 flex items-center justify-center">
+          <div className="text-center">
+            <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+            <p className="text-slate-400">Loading rounds...</p>
+          </div>
+        </div>
+      )}
+
+      {!loading && rounds.length === 0 && (
+        <div className="bg-slate-900 border border-slate-800 rounded-lg p-6">
+          <div className="text-white text-lg font-semibold mb-2">No rounds yet</div>
+          <div className="text-slate-400">Finalize a round to see it here.</div>
+        </div>
+      )}
+
+      {!loading && rounds.length > 0 && (
+        <div className="grid gap-4">
+        {rounds.map(round => (
           <Card
-            key={round.roundId}
+            key={round.id}
             className="bg-slate-900 border-slate-800 p-4 sm:p-6 hover:border-blue-500 transition-colors cursor-pointer"
-            onClick={() => setSelectedRound(round.roundNumber)}
+            onClick={() => {
+              setSelectedRoundId(round.id);
+              setSelectedRoundNumber(round.roundNumber);
+            }}
           >
             <div className="flex flex-col gap-4">
               {/* Top section - Round info */}
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-blue-500/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                <div className="w-12 h-12 bg-blue-500/10 rounded-lg flex items-center justify-center shrink-0">
                   <span className="text-blue-400 font-bold text-lg">{round.roundNumber}</span>
                 </div>
                 <div className="flex-1">
@@ -241,6 +458,7 @@ export default function RoundsV1() {
           </Card>
         ))}
       </div>
+      )}
     </LayoutV1>
   );
 }
