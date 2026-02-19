@@ -33,14 +33,23 @@ import { notifyAllPlayers, isEmailServiceConfigured } from '@/lib/emailService';
  * Note: Admin can set Final at any time from Active status (before Completed)
  */
 
-import { useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
+// Mock teams for adding new matches
+const allTeams = [
+  { name: 'Arsenal', short: 'ARS' },
+  { name: 'Aston Villa', short: 'AVL' },
+  { name: 'Brighton', short: 'BHA' },
+  { name: 'Chelsea', short: 'CHE' },
+  { name: 'Everton', short: 'EVE' },
+  { name: 'Liverpool', short: 'LIV' },
+  { name: 'Manchester City', short: 'MCI' },
+  { name: 'Manchester United', short: 'MUN' },
+  { name: 'Newcastle', short: 'NEW' },
+  { name: 'Tottenham', short: 'TOT' },
+  { name: 'West Ham', short: 'WHU' },
+  { name: 'Wolves', short: 'WOL' },
+];
 
 export default function AdminRoundV1() {
-  const [allTeams, setAllTeams] = useState<any[]>([]);
-  const [matches, setMatches] = useState<any[]>([]);
-  const [postponedMatches, setPostponedMatches] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [, params] = useRoute('/version1/admin/round/:roundNumber');
   const [, postponedParams] = useRoute('/version1/admin/postponed/:id');
   const [, setLocation] = useLocation();
@@ -74,38 +83,22 @@ export default function AdminRoundV1() {
   const [publishWarning, setPublishWarning] = useState(false);
   const [setFinalError, setSetFinalError] = useState('');
   
-  useEffect(() => {
-    const fetchAdminRoundData = async () => {
-      setLoading(true);
-      // Fetch teams
-      const { data: teams } = await supabase.from('teams').select('*').order('name', { ascending: true });
-      setAllTeams(teams || []);
-      // Fetch matches for this round or postponed
-      if (isPostponed) {
-        if (!isNew) {
-          const { data: match } = await supabase.from('matches').select('*').eq('id', roundNumber).single();
-          setMatches(match ? [match] : []);
-        } else {
-          setMatches([]);
-        }
-      } else {
-        if (!isNew) {
-          const { data: round } = await supabase.from('rounds').select('id').eq('number', roundNumber).single();
-          if (round) {
-            const { data: roundMatches } = await supabase.from('matches').select('*').eq('round_id', round.id);
-            setMatches(roundMatches || []);
-          } else {
-            setMatches([]);
-          }
-        } else {
-          setMatches([]);
-        }
-      }
-      setLoading(false);
-    };
-    fetchAdminRoundData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isPostponed, isNew, roundNumber]);
+  // Mock match data
+  const isFinalRound = getInitialStatus() === 'final';
+  const initialMatches = (isPostponed && isNew) ? [] : isPostponed ? [
+    // Postponed game - only 1 match
+    { id: 1, homeTeam: 'Manchester City', homeShort: 'MCI', awayTeam: 'Arsenal', awayShort: 'ARS', kickoff: '2025-02-01T15:00', includeInRound: true, result: null },
+  ] : [
+    // Regular round - multiple matches
+    { id: 1, homeTeam: 'Manchester City', homeShort: 'MCI', awayTeam: 'Arsenal', awayShort: 'ARS', kickoff: '2025-02-01T15:00', includeInRound: true, result: isFinalRound ? 'H' : null },
+    { id: 2, homeTeam: 'Liverpool', homeShort: 'LIV', awayTeam: 'Aston Villa', awayShort: 'AVL', kickoff: '2025-02-01T15:00', includeInRound: true, result: isFinalRound ? 'U' : null },
+    { id: 3, homeTeam: 'Tottenham', homeShort: 'TOT', awayTeam: 'Chelsea', awayShort: 'CHE', kickoff: '2025-02-01T17:30', includeInRound: true, result: isFinalRound ? 'B' : null },
+    { id: 4, homeTeam: 'Newcastle', homeShort: 'NEW', awayTeam: 'Manchester United', awayShort: 'MUN', kickoff: '2025-02-02T14:00', includeInRound: true, result: isFinalRound ? 'H' : null },
+    { id: 5, homeTeam: 'West Ham', homeShort: 'WHU', awayTeam: 'Brighton', awayShort: 'BHA', kickoff: '2025-02-02T14:00', includeInRound: true, result: isFinalRound ? 'U' : null },
+  ];
+  
+  const [matches, setMatches] = useState(initialMatches);
+  const [postponedMatches, setPostponedMatches] = useState<any[]>([]);
   const [showAddMatch, setShowAddMatch] = useState(false);
   const [newHomeTeam, setNewHomeTeam] = useState('');
   const [newAwayTeam, setNewAwayTeam] = useState('');
@@ -129,34 +122,25 @@ export default function AdminRoundV1() {
     toast.success('Match deleted');
   };
 
-  const handleAddMatch = async () => {
+  const handleAddMatch = () => {
     if (!newHomeTeam || !newAwayTeam) {
       toast.error('Please select both teams');
       return;
     }
-    const home = allTeams.find(t => t.short_name === newHomeTeam);
-    const away = allTeams.find(t => t.short_name === newAwayTeam);
+    const home = allTeams.find(t => t.short === newHomeTeam);
+    const away = allTeams.find(t => t.short === newAwayTeam);
     if (home && away) {
-      // Insert new match into Supabase
-      const { data: inserted, error } = await supabase.from('matches').insert([
-        {
-          home_team_id: home.id,
-          away_team_id: away.id,
-          kickoff: deadline,
-          include_in_round: true,
-          round_id: !isPostponed && !isNew ? matches[0]?.round_id : null,
-          is_postponed: isPostponed,
-        }
-      ]).select();
-      if (!error && inserted && inserted.length > 0) {
-        setMatches([...matches, inserted[0]]);
-        setNewHomeTeam('');
-        setNewAwayTeam('');
-        setShowAddMatch(false);
-        toast.success('Match added');
-      } else {
-        toast.error('Failed to add match');
-      }
+      const newMatch = {
+        id: matches.length > 0 ? Math.max(...matches.map(m => m.id)) + 1 : 1,
+        homeTeam: home.name,
+        homeShort: home.short,
+        awayTeam: away.name,
+        awayShort: away.short,
+        kickoff: deadline,
+        includeInRound: true,
+        result: null,
+      };
+      setMatches([...matches, newMatch]);
       setNewHomeTeam('');
       setNewAwayTeam('');
       setShowAddMatch(false);
@@ -377,9 +361,9 @@ export default function AdminRoundV1() {
                     <SelectValue placeholder="Select team" />
                   </SelectTrigger>
                   <SelectContent className="bg-slate-800 border-slate-700">
-                    {allTeams.map((team: any) => (
-                      <SelectItem key={team.short_name} value={team.short_name} className="text-white focus:bg-slate-700 focus:text-white">
-                        {team.name} ({team.short_name})
+                    {allTeams.map(team => (
+                      <SelectItem key={team.short} value={team.short} className="text-white focus:bg-slate-700 focus:text-white">
+                        {team.name} ({team.short})
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -392,9 +376,9 @@ export default function AdminRoundV1() {
                     <SelectValue placeholder="Select team" />
                   </SelectTrigger>
                   <SelectContent className="bg-slate-800 border-slate-700">
-                    {allTeams.map((team: any) => (
-                      <SelectItem key={team.short_name} value={team.short_name} className="text-white focus:bg-slate-700 focus:text-white">
-                        {team.name} ({team.short_name})
+                    {allTeams.map(team => (
+                      <SelectItem key={team.short} value={team.short} className="text-white focus:bg-slate-700 focus:text-white">
+                        {team.name} ({team.short})
                       </SelectItem>
                     ))}
                   </SelectContent>

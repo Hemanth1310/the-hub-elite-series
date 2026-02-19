@@ -4,83 +4,33 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Clock, TrendingUp, TrendingDown, CheckCircle, XCircle, Target, Award, BarChart3 } from 'lucide-react';
 import { Link } from 'wouter';
-import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
-import { useAuth } from '@/contexts/AuthContext';
+import { currentRound } from '@/mockData';
 import LayoutV1 from './Layout';
+import { useState } from 'react';
 import { formatTimeRemainingCompact } from '@/lib/timeUtils';
 
 export default function DashboardV1() {
-
-  const { user: currentUser } = useAuth();
+  // Mock data
+  const userPosition = 3;
+  const userPoints = 142;
+  const positionChange = 2; // positive = up, negative = down
+  
+  // DEMO: Select different statuses to see how the page changes
   const [roundStatus, setRoundStatus] = useState<'open' | 'locked' | 'active' | 'completed' | 'final'>('open');
-  const [currentRound, setCurrentRound] = useState<any>(null);
-  const [userStats, setUserStats] = useState<any>(null);
-  const [lastRoundStats, setLastRoundStats] = useState<any>(null);
-  const [seasonStats, setSeasonStats] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchDashboard = async () => {
-      setLoading(true);
-      // Get current round
-      const { data: roundData } = await supabase
-        .from('rounds')
-        .select('*')
-        .order('number', { ascending: false })
-        .limit(1)
-        .single();
-      setCurrentRound(roundData);
-      // Get user stats (position, points, position change)
-      if (currentUser) {
-        // Get leaderboard for current round
-        const { data: leaderboard } = await supabase
-          .rpc('get_leaderboard', { round_number: roundData?.number });
-        if (leaderboard && Array.isArray(leaderboard)) {
-          const userIndex = leaderboard.findIndex((u: any) => u.user_id === currentUser.id);
-          if (userIndex !== -1) {
-            setUserStats({
-              position: userIndex + 1,
-              points: leaderboard[userIndex].points,
-              positionChange: leaderboard[userIndex].position_change,
-            });
-          }
-        }
-        // Last round stats
-        const { data: lastRound } = await supabase
-          .from('rounds')
-          .select('*')
-          .order('number', { ascending: false })
-          .range(1, 1)
-          .single();
-        if (lastRound) {
-          const { data: lastPred } = await supabase
-            .from('predictions')
-            .select('*')
-            .eq('user_id', currentUser.id)
-            .eq('round_id', lastRound.id)
-            .single();
-          setLastRoundStats({
-            points: lastPred?.points ?? 0,
-            positionChange: lastPred?.position_change ?? 0,
-            bankerSuccess: lastPred?.banker_success ?? false,
-          });
-        }
-        // Season stats
-        const { data: season } = await supabase
-          .rpc('get_user_season_stats', { user_id: currentUser.id });
-        setSeasonStats(season);
-      }
-      setLoading(false);
-    };
-    fetchDashboard();
-  }, [currentUser]);
-
-  const timeRemaining = currentRound ? formatTimeRemainingCompact(currentRound.deadline) : '--';
-
-
-  // TODO: Replace with real logic for predictionsComplete
   const predictionsComplete = false;
+  
+  // Last round data
+  const lastRoundPoints = 18;
+  const lastRoundPositionChange = 2;
+  const lastRoundBankerSuccess = true;
+  
+  // Season stats
+  const totalPoints = 142;
+  const predictionAccuracy = 68;
+  const bankerSuccessRate = 55;
+
+  const timeRemaining = formatTimeRemainingCompact(currentRound.deadline);
+
   const getActionButton = () => {
     if (roundStatus === 'open') {
       if (predictionsComplete) {
@@ -109,6 +59,7 @@ export default function DashboardV1() {
       variant: 'default' as const,
     };
   };
+
   const actionButton = getActionButton();
 
   return (
@@ -121,7 +72,7 @@ export default function DashboardV1() {
             <div className="text-slate-300 text-sm">Select a round status to see how the "Current Round" card changes:</div>
           </div>
           <Select value={roundStatus} onValueChange={(value: any) => setRoundStatus(value)}>
-            <SelectTrigger className="w-50 bg-slate-800 border-slate-700 text-white">
+            <SelectTrigger className="w-[200px] bg-slate-800 border-slate-700 text-white">
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="bg-slate-800 border-slate-700">
@@ -150,7 +101,7 @@ export default function DashboardV1() {
             <div>
               <div className="text-slate-400 text-xs mb-1">Current Round</div>
               <div className="flex items-center gap-2">
-                <h2 className="text-xl font-bold text-white">Round {currentRound?.number ?? '--'}</h2>
+                <h2 className="text-xl font-bold text-white">Round {currentRound.number}</h2>
                 <Badge
                   className={
                     roundStatus === 'open'
@@ -233,20 +184,20 @@ export default function DashboardV1() {
           <div className="flex flex-col">
             <div className="text-slate-400 text-xs mb-1">Your Current Position</div>
             <div className="flex items-center gap-2">
-              <div className="text-3xl font-bold text-white">#{userStats?.position ?? '--'}</div>
-              {userStats && Number(userStats.positionChange) !== 0 && (
-                <div className={`flex items-center gap-1 ${userStats.positionChange > 0 ? 'text-green-400' : 'text-red-400'}`}>
-                  {userStats.positionChange > 0 ? (
+              <div className="text-3xl font-bold text-white">#{userPosition}</div>
+              {positionChange !== 0 && (
+                <div className={`flex items-center gap-1 ${positionChange > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  {positionChange > 0 ? (
                     <TrendingUp className="w-4 h-4" />
                   ) : (
                     <TrendingDown className="w-4 h-4" />
                   )}
-                  <span className="text-lg font-semibold">{Math.abs(userStats.positionChange)}</span>
+                  <span className="text-lg font-semibold">{Math.abs(positionChange)}</span>
                 </div>
               )}
             </div>
             <div className="text-white text-xl font-semibold">
-              {userStats?.points ?? '--'} points
+              {totalPoints} points
             </div>
           </div>
         </Card>
@@ -264,22 +215,22 @@ export default function DashboardV1() {
           <div className="space-y-3">
             <div>
               <div className="text-slate-400 text-xs mb-1">Points Scored</div>
-              <div className="text-2xl font-bold text-white">{lastRoundStats?.points ?? '--'}</div>
+              <div className="text-2xl font-bold text-white">{lastRoundPoints}</div>
             </div>
             
             <div className="flex items-center justify-between pt-3 border-t border-slate-800">
               <div>
                 <div className="text-slate-400 text-xs mb-1">Position Change</div>
-                <div className={`flex items-center gap-1 ${lastRoundStats?.positionChange > 0 ? 'text-green-400' : lastRoundStats?.positionChange < 0 ? 'text-red-400' : 'text-slate-400'}`}>
-                  {lastRoundStats?.positionChange > 0 ? (
+                <div className={`flex items-center gap-1 ${lastRoundPositionChange > 0 ? 'text-green-400' : lastRoundPositionChange < 0 ? 'text-red-400' : 'text-slate-400'}`}>
+                  {lastRoundPositionChange > 0 ? (
                     <>
                       <TrendingUp className="w-3 h-3" />
-                      <span className="text-base font-semibold">+{lastRoundStats.positionChange}</span>
+                      <span className="text-base font-semibold">+{lastRoundPositionChange}</span>
                     </>
-                  ) : lastRoundStats?.positionChange < 0 ? (
+                  ) : lastRoundPositionChange < 0 ? (
                     <>
                       <TrendingDown className="w-3 h-3" />
-                      <span className="text-base font-semibold">{lastRoundStats.positionChange}</span>
+                      <span className="text-base font-semibold">{lastRoundPositionChange}</span>
                     </>
                   ) : (
                     <span className="text-base font-semibold">—</span>
@@ -290,7 +241,7 @@ export default function DashboardV1() {
               <div>
                 <div className="text-slate-400 text-xs mb-1">Banker Result</div>
                 <div className="flex items-center gap-1">
-                  {lastRoundStats?.bankerSuccess ? (
+                  {lastRoundBankerSuccess ? (
                     <>
                       <CheckCircle className="w-4 h-4 text-green-400" />
                       <span className="text-base font-semibold text-green-400">Success</span>
@@ -317,18 +268,18 @@ export default function DashboardV1() {
           <div className="space-y-3">
             <div>
               <div className="text-slate-400 text-xs mb-1">Total Points</div>
-              <div className="text-2xl font-bold text-white">{seasonStats?.total_points ?? '--'}</div>
+              <div className="text-2xl font-bold text-white">{totalPoints}</div>
             </div>
             
             <div className="grid grid-cols-2 gap-3 pt-3 border-t border-slate-800">
               <div>
                 <div className="text-slate-400 text-xs mb-1">Prediction Accuracy</div>
-                <div className="text-xl font-bold text-blue-400">{seasonStats?.prediction_accuracy ?? '--'}%</div>
+                <div className="text-xl font-bold text-blue-400">{predictionAccuracy}%</div>
               </div>
               
               <div>
                 <div className="text-slate-400 text-xs mb-1">Banker Success</div>
-                <div className="text-xl font-bold text-blue-400">{seasonStats?.banker_success_rate ?? '--'}%</div>
+                <div className="text-xl font-bold text-blue-400">{bankerSuccessRate}%</div>
               </div>
             </div>
           </div>

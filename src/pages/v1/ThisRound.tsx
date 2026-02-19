@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -11,99 +12,49 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Clock, Star, HelpCircle, Users2 } from 'lucide-react';
 import { Link } from 'wouter';
-import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
-import { useAuth } from '@/contexts/AuthContext';
+import { matches, currentRound, currentUserPredictions } from '@/mockData';
 import { MatchResult } from '@/types';
 import LayoutV1 from './Layout';
 import { formatTimeRemainingCompact } from '@/lib/timeUtils';
 import { toast } from 'sonner';
 
 export default function ThisRoundV1() {
-  const { user } = useAuth();
   const [roundStatus, setRoundStatus] = useState<'open' | 'locked' | 'final'>('open');
   const [roundType, setRoundType] = useState<'round' | 'standalone'>('round');
   const [isSaved, setIsSaved] = useState(false);
-  const [matches, setMatches] = useState<any[]>([]);
-  const [currentRound, setCurrentRound] = useState<any | null>(null);
-  const [predictions, setPredictions] = useState<Record<string, MatchResult>>({});
-  const [bankerMatchId, setBankerMatchId] = useState<string | null>(null);
+  
+  const [predictions, setPredictions] = useState<Record<string, MatchResult>>(
+    currentUserPredictions.reduce((acc, p) => ({ ...acc, [p.matchId]: p.prediction }), {})
+  );
+  const [bankerMatchId, setBankerMatchId] = useState<string | null>(
+    currentUserPredictions.find(p => p.isBanker)?.matchId || null
+  );
   const [showHowToPredict, setShowHowToPredict] = useState(false);
-  const [loading, setLoading] = useState(true);
 
-  // Fetch current round, matches, and user predictions
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      // 1. Get current round (latest open/active round)
-      const { data: roundData } = await supabase
-        .from('rounds')
-        .select('*')
-        .in('status', ['open', 'active'])
-        .order('deadline', { ascending: true })
-        .limit(1)
-        .single();
-      setCurrentRound(roundData);
-      if (!roundData) {
-        setMatches([]);
-        setPredictions({});
-        setLoading(false);
-        return;
-      }
-      // 2. Get matches for this round
-      const { data: matchData } = await supabase
-        .from('matches')
-        .select('*, home_team:home_team_id(*), away_team:away_team_id(*)')
-        .eq('round_id', roundData.id)
-        .order('kickoff', { ascending: true });
-      setMatches(matchData || []);
-      // 3. Get user predictions for this round
-      if (user) {
-        const { data: predictionData } = await supabase
-          .from('predictions')
-          .select('*')
-          .eq('user_id', user.id)
-          .eq('round_id', roundData.id);
-        const predMap: Record<string, MatchResult> = {};
-        let bankerId: string | null = null;
-        (predictionData || []).forEach((p: any) => {
-          predMap[p.match_id] = p.prediction;
-          if (p.is_banker) bankerId = p.match_id;
-        });
-        setPredictions(predMap);
-        setBankerMatchId(bankerId);
-      }
-      setLoading(false);
-    };
-    fetchData();
-  }, [user]);
+  const timeRemaining = formatTimeRemainingCompact(currentRound.deadline);
 
-  const timeRemaining = currentRound ? formatTimeRemainingCompact(new Date(currentRound.deadline)) : '';
-
-  const formatDate = (date: Date | string) => {
-    const d = typeof date === 'string' ? new Date(date) : date;
-    return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  const formatDate = (date: Date) => {
+    return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
   };
 
   const handlePredictionChange = (matchId: string, result: MatchResult) => {
     setPredictions(prev => ({ ...prev, [matchId]: result }));
-    setIsSaved(false);
+    setIsSaved(false); // Mark as unsaved when changed
   };
 
   const handleBankerToggle = (matchId: string) => {
     if (roundType === 'standalone') return;
     setBankerMatchId(prev => prev === matchId ? null : matchId);
-    setIsSaved(false);
+    setIsSaved(false); // Mark as unsaved when changed
   };
 
   const canEdit = roundStatus === 'open';
   const showResults = roundStatus === 'final';
-  const displayMatches = roundType === 'standalone'
-    ? matches.filter(m => m.include_in_round).slice(0, 1)
-    : matches.filter(m => m.include_in_round);
-
-  if (loading) return <div className="p-8 text-center text-slate-400">Loading...</div>;
-  if (!currentRound) return <div className="p-8 text-center text-slate-400">No active round found.</div>;
+  
+  // For standalone, show only first match; for rounds, show all
+  const displayMatches = roundType === 'standalone' 
+    ? matches.filter(m => m.includeInRound).slice(0, 1)
+    : matches.filter(m => m.includeInRound);
 
   return (
     <LayoutV1>
@@ -213,7 +164,7 @@ export default function ThisRoundV1() {
             // Banker only: 6 or -3
             // MOTW only: 6 or 0
             // Banker + MOTW: 12 or -6
-            let points: number | null = null;
+            let points = null;
             if (showResults) {
               if (isBanker && isMOTW) {
                 // Both banker and MOTW

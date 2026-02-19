@@ -3,64 +3,16 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ChevronLeft, Star, Users } from 'lucide-react';
-import { useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
-import { useAuth } from '@/contexts/AuthContext';
+import { round15Details, users, currentUser } from '@/mockData';
 import { useRoute, Link } from 'wouter';
 import LayoutV1 from './Layout';
 
 export default function CompareRoundHistoryV1() {
   const [, params] = useRoute('/version1/rounds/:roundNumber/compare');
   const roundNumber = params?.roundNumber || '15';
-  const { user: currentUser } = useAuth();
-  const [users, setUsers] = useState<any[]>([]);
-  const [matches, setMatches] = useState<any[]>([]);
-  const [predictions, setPredictions] = useState<any[]>([]);
-  const [round, setRound] = useState<any | null>(null);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchAll = async () => {
-      setLoading(true);
-      // Users
-      const { data: userData } = await supabase.from('users').select('*');
-      setUsers(userData || []);
-      // Round
-      const { data: roundData } = await supabase
-        .from('rounds')
-        .select('*')
-        .eq('number', roundNumber)
-        .single();
-      setRound(roundData);
-      if (!roundData) {
-        setMatches([]);
-        setPredictions([]);
-        setLoading(false);
-        return;
-      }
-      // Matches
-      const { data: matchData } = await supabase
-        .from('matches')
-        .select('*, home_team:home_team_id(*), away_team:away_team_id(*)')
-        .eq('round_id', roundData.id)
-        .order('kickoff', { ascending: true });
-      setMatches(matchData || []);
-      // Predictions
-      const { data: predictionData } = await supabase
-        .from('predictions')
-        .select('*')
-        .eq('round_id', roundData.id);
-      setPredictions(predictionData || []);
-      // Set default selected user
-      if (userData && currentUser) {
-        const others = userData.filter((u: any) => u.id !== currentUser.id);
-        setSelectedUserId(others[0]?.id || null);
-      }
-      setLoading(false);
-    };
-    fetchAll();
-  }, [currentUser, roundNumber]);
+  
+  const roundData = round15Details; // In production, fetch based on roundNumber
 
   return (
     <LayoutV1>
@@ -83,18 +35,18 @@ export default function CompareRoundHistoryV1() {
 
       <div className="flex flex-col lg:flex-row gap-6">
         {/* Player List - Horizontal scroll on mobile, vertical on desktop */}
-        <div className="lg:w-64 shrink-0">
+        <div className="lg:w-64 flex-shrink-0">
           <h3 className="text-slate-400 text-sm font-semibold mb-3 uppercase">All Players</h3>
           
           {/* Mobile: Horizontal scroll */}
           <div className="lg:hidden flex gap-2 overflow-x-auto pb-2">
-            {users.filter((u: any) => u.id !== currentUser?.id).map((user: any) => {
-              const userPrediction = predictions.find((p: any) => p.user_id === user.id);
+            {users.filter(u => u.id !== currentUser.id).map(user => {
+              const userPrediction = roundData.predictions.find(p => p.userId === user.id);
               return (
                 <button
                   key={user.id}
                   onClick={() => setSelectedUserId(user.id)}
-                  className={`shrink-0 px-4 py-3 rounded-lg transition-colors ${
+                  className={`flex-shrink-0 px-4 py-3 rounded-lg transition-colors ${
                     selectedUserId === user.id
                       ? 'bg-blue-500/20 border border-blue-500/50 text-white'
                       : 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white'
@@ -111,8 +63,8 @@ export default function CompareRoundHistoryV1() {
           
           {/* Desktop: Vertical list */}
           <div className="hidden lg:block space-y-2">
-            {users.filter((u: any) => u.id !== currentUser?.id).map((user: any) => {
-              const userPrediction = predictions.find((p: any) => p.user_id === user.id);
+            {users.filter(u => u.id !== currentUser.id).map(user => {
+              const userPrediction = roundData.predictions.find(p => p.userId === user.id);
               return (
                 <button
                   key={user.id}
@@ -138,32 +90,33 @@ export default function CompareRoundHistoryV1() {
           {selectedUserId ? (
             <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 sm:p-6">
               <h2 className="text-white font-semibold text-base sm:text-lg mb-4 sm:mb-6">
-                You vs {users.find((u: any) => u.id === selectedUserId)?.name}
+                You vs {users.find(u => u.id === selectedUserId)?.name}
               </h2>
               
               {/* Mobile Card Layout */}
               <div className="lg:hidden space-y-3">
-                {matches.map((match: any, idx: number) => {
-                  const myPred = predictions.find((p: any) => p.user_id === currentUser?.id);
-                  const theirPred = predictions.find((p: any) => p.user_id === selectedUserId);
-                  const myPick = myPred?.picks ? myPred.picks[idx] : null;
-                  const theirPick = theirPred?.picks ? theirPred.picks[idx] : null;
+                {roundData.matches.map((match, idx) => {
+                  const myPred = roundData.predictions.find(p => p.userId === currentUser.id);
+                  const theirPred = roundData.predictions.find(p => p.userId === selectedUserId);
+                  const myPick = myPred?.picks[idx];
+                  const theirPick = theirPred?.picks[idx];
                   const myConviction = myPred?.conviction === idx;
                   const theirConviction = theirPred?.conviction === idx;
                   const myCorrect = myPick === match.result;
                   const theirCorrect = theirPick === match.result;
+                  
                   return (
-                    <div key={match.id} className={`bg-slate-800/50 rounded-lg p-4 mb-4 ${match.is_match_of_the_week ? 'ring-2 ring-yellow-500/50' : ''}`}>
+                    <div key={match.id} className={`bg-slate-800/50 rounded-lg p-4 mb-4 ${match.isMatchOfTheWeek ? 'ring-2 ring-yellow-500/50' : ''}`}>
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2 flex-1">
-                          {match.is_match_of_the_week && (
+                          {match.isMatchOfTheWeek && (
                             <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/40 flex items-center gap-1 text-xs font-bold mr-2 px-1.5 py-0.5">
                               <Star className="w-3 h-3 fill-current" />
                             </Badge>
                           )}
                           <span className="text-white text-sm font-medium">
-                            <span className="sm:hidden">{match.home_team?.short_name}</span>
-                            <span className="hidden sm:inline">{match.home_team?.name}</span>
+                            <span className="sm:hidden">{match.home.shortName}</span>
+                            <span className="hidden sm:inline">{match.home.name}</span>
                           </span>
                           <span className="text-slate-600 text-xs">vs</span>
                           <span className="text-white text-sm font-medium">
@@ -202,13 +155,13 @@ export default function CompareRoundHistoryV1() {
                   <div>
                     <div className="text-slate-400 text-xs mb-1">Your Points</div>
                     <div className="font-bold text-lg text-blue-400">
-                      {currentUser && predictions.find((p: any) => p.user_id === currentUser.id)?.points}
+                      {roundData.predictions.find(p => p.userId === currentUser.id)?.points}
                     </div>
                   </div>
                   <div>
                     <div className="text-slate-400 text-xs mb-1">Their Points</div>
                     <div className="font-bold text-lg text-slate-300">
-                      {predictions.find((p: any) => p.user_id === selectedUserId)?.points}
+                      {roundData.predictions.find(p => p.userId === selectedUserId)?.points}
                     </div>
                   </div>
                 </div>
@@ -219,7 +172,7 @@ export default function CompareRoundHistoryV1() {
                 <Table>
                   <TableHeader>
                     <TableRow className="border-slate-800 hover:bg-transparent">
-                      <TableHead className="text-slate-400 font-semibold min-w-50">Match</TableHead>
+                      <TableHead className="text-slate-400 font-semibold min-w-[200px]">Match</TableHead>
                       <TableHead className="text-slate-400 font-semibold text-center w-16">Result</TableHead>
                       <TableHead className="text-slate-400 font-semibold text-center w-20">You</TableHead>
                       <TableHead className="text-slate-400 font-semibold text-center w-20">
@@ -228,28 +181,29 @@ export default function CompareRoundHistoryV1() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {matches.map((match: any, idx: number) => {
-                      const myPred = currentUser ? predictions.find((p: any) => p.user_id === currentUser.id) : null;
-                      const theirPred = predictions.find((p: any) => p.user_id === selectedUserId);
-                      const myPick = myPred?.picks ? myPred.picks[idx] : null;
-                      const theirPick = theirPred?.picks ? theirPred.picks[idx] : null;
+                    {roundData.matches.map((match, idx) => {
+                      const myPred = roundData.predictions.find(p => p.userId === currentUser.id);
+                      const theirPred = roundData.predictions.find(p => p.userId === selectedUserId);
+                      const myPick = myPred?.picks[idx];
+                      const theirPick = theirPred?.picks[idx];
                       const myConviction = myPred?.conviction === idx;
                       const theirConviction = theirPred?.conviction === idx;
                       const myCorrect = myPick === match.result;
                       const theirCorrect = theirPick === match.result;
+                      
                       return (
                         <TableRow key={match.id} className="border-slate-800 hover:bg-slate-800/50">
                           <TableCell>
-                            {match.is_match_of_the_week && (
+                            {match.isMatchOfTheWeek && (
                               <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/40 flex items-center gap-1 text-xs font-bold mb-2 w-fit px-2 py-0.5">
                                 <Star className="w-3 h-3 fill-current" />
                                 MOTW
                               </Badge>
                             )}
                             <div className="flex items-center gap-3">
-                              <span className="text-white text-sm">{match.home_team?.name}</span>
+                              <span className="text-white text-sm">{match.home.name}</span>
                               <span className="text-slate-600 text-xs">vs</span>
-                              <span className="text-white text-sm">{match.away_team?.name}</span>
+                              <span className="text-white text-sm">{match.away.name}</span>
                             </div>
                           </TableCell>
                           <TableCell className="text-center">
@@ -281,12 +235,12 @@ export default function CompareRoundHistoryV1() {
                       <TableCell></TableCell>
                       <TableCell className="text-center">
                         <span className="font-bold text-lg text-blue-400">
-                          {currentUser && predictions.find((p: any) => p.user_id === currentUser.id)?.points}
+                          {roundData.predictions.find(p => p.userId === currentUser.id)?.points}
                         </span>
                       </TableCell>
                       <TableCell className="text-center">
                         <span className="font-bold text-lg text-slate-300">
-                          {predictions.find((p: any) => p.user_id === selectedUserId)?.points}
+                          {roundData.predictions.find(p => p.userId === selectedUserId)?.points}
                         </span>
                       </TableCell>
                     </TableRow>
