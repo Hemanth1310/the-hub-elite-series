@@ -20,6 +20,7 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const supabaseConfigured = isSupabaseConfigured();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,47 +37,6 @@ export default function Login() {
     }
   };
 
-  // Mock mode - just redirect
-  if (!isSupabaseConfigured()) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center p-4">
-        <Card className="bg-slate-900/50 backdrop-blur border-slate-800 p-8 sm:p-12 max-w-md w-full">
-          <div className="text-center mb-8">
-            <img src={hubLogo} alt="The Hub" className="w-20 h-20 mx-auto mb-4 object-contain" />
-            <h1 className="text-3xl font-bold text-white mb-2">Development Mode</h1>
-            <p className="text-slate-400 text-sm">Supabase authentication not configured</p>
-          </div>
-
-          <Alert className="bg-blue-500/10 border-blue-500/30 text-blue-400 mb-6">
-            <Info className="w-4 h-4" />
-            <AlertDescription>
-              You're using mock authentication. Click below to continue as James (Admin).
-            </AlertDescription>
-          </Alert>
-
-          <Button
-            onClick={() => {
-              // Just refresh the page - auth context will auto-login
-              window.location.href = '/version1';
-            }}
-            size="lg"
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-          >
-            Continue as Mock User (James - Admin)
-          </Button>
-
-          <div className="mt-6 pt-6 border-t border-slate-800 text-center">
-            <p className="text-slate-500 text-sm">
-              To enable real authentication, configure Supabase.
-              <br />
-              See <code className="text-blue-400">/docs/SUPABASE-SETUP.md</code>
-            </p>
-          </div>
-        </Card>
-      </div>
-    );
-  }
-
   // Real login form
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center p-4">
@@ -88,6 +48,14 @@ export default function Login() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {!supabaseConfigured && (
+            <Alert className="bg-yellow-500/10 border-yellow-500/30 text-yellow-400">
+              <Info className="w-4 h-4" />
+              <AlertDescription>
+                Supabase is not configured. Check your <code>/docs/SUPABASE-SETUP.md</code> and environment variables.
+              </AlertDescription>
+            </Alert>
+          )}
           {error && (
             <Alert className="bg-red-500/10 border-red-500/30 text-red-400">
               <AlertCircle className="w-4 h-4" />
@@ -128,7 +96,7 @@ export default function Login() {
           <Button
             type="submit"
             size="lg"
-            disabled={loading}
+            disabled={loading || !supabaseConfigured}
             className="w-full bg-blue-600 hover:bg-blue-700 text-white"
           >
             {loading ? 'Signing in...' : 'Sign In'}

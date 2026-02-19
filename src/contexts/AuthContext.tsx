@@ -1,7 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { supabase, UserProfile } from '@/lib/supabase';
 import { User } from '@supabase/supabase-js';
-import { currentUser } from '@/mockData';
 
 type AuthContextType = {
   user: UserProfile | null;
@@ -22,33 +21,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // If Supabase is not configured, use mock user for development
     if (!isSupabaseConfigured()) {
-      console.log('⚠️ Supabase not configured. Using mock authentication.');
-      setUser({
-        id: currentUser.id,
-        email: 'james@example.com',
-        name: currentUser.name,
-        isAdmin: currentUser.isAdmin,
-      });
+      console.warn('Supabase is not configured. Authentication is disabled.');
+      setUser(null);
       setLoading(false);
       return;
     }
 
     // Check active session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        setUserProfile(session.user);
+    const initializeSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          setUser(buildProfileFromAuth(session.user));
+          void loadUserProfile(session.user);
+        } else {
+          setUser(null);
+        }
+      } catch {
+        setUser(null);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
-    });
+    };
+
+    initializeSession();
 
     // Listen for auth changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
-        setUserProfile(session.user);
+        setUser(buildProfileFromAuth(session.user));
+        void loadUserProfile(session.user);
       } else {
         setUser(null);
       }
@@ -58,14 +63,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const setUserProfile = (authUser: User) => {
-    const profile: UserProfile = {
-      id: authUser.id,
-      email: authUser.email || '',
-      name: authUser.user_metadata?.name || authUser.email?.split('@')[0] || 'User',
-      isAdmin: authUser.user_metadata?.isAdmin === true,
-    };
-    setUser(profile);
+  const buildProfileFromAuth = (authUser: User): UserProfile => ({
+    id: authUser.id,
+    email: authUser.email || '',
+    name: authUser.user_metadata?.name || authUser.email?.split('@')[0] || 'User',
+    isAdmin: authUser.user_metadata?.isAdmin === true || authUser.user_metadata?.is_admin === true,
+  });
+
+  const loadUserProfile = async (authUser: User) => {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('id,email,name,is_admin')
+        .eq('id', authUser.id)
+        .single();
+
+      if (!error && data) {
+        setUser({
+          id: data.id,
+          email: data.email,
+          name: data.name,
+          isAdmin: data.is_admin === true,
+        });
+        return;
+      }
+    } catch {
+      // fall through to metadata fallback
+    }
+
+    setUser(buildProfileFromAuth(authUser));
   };
 
   const signIn = async (email: string, password: string) => {
@@ -84,7 +110,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (data.user) {
-        setUserProfile(data.user);
+        setUser(buildProfileFromAuth(data.user));
+        await loadUserProfile(data.user);
       }
 
       return { error: null };
