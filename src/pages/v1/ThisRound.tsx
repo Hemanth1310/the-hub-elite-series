@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -12,26 +12,129 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Clock, Star, HelpCircle, Users2 } from 'lucide-react';
 import { Link } from 'wouter';
-import { matches, currentRound, currentUserPredictions } from '@/mockData';
 import { MatchResult } from '@/types';
 import LayoutV1 from './Layout';
 import { formatTimeRemainingCompact } from '@/lib/timeUtils';
 import { toast } from 'sonner';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function ThisRoundV1() {
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [round, setRound] = useState<{
+    id: string;
+    number: number;
+    roundType: 'round' | 'standalone';
+    deadline: string;
+    status: 'scheduled' | 'published' | 'final';
+  } | null>(null);
+  const [matches, setMatches] = useState<any[]>([]);
   const [roundStatus, setRoundStatus] = useState<'open' | 'locked' | 'final'>('open');
   const [roundType, setRoundType] = useState<'round' | 'standalone'>('round');
   const [isSaved, setIsSaved] = useState(false);
-  
-  const [predictions, setPredictions] = useState<Record<string, MatchResult>>(
-    currentUserPredictions.reduce((acc, p) => ({ ...acc, [p.matchId]: p.prediction }), {})
-  );
-  const [bankerMatchId, setBankerMatchId] = useState<string | null>(
-    currentUserPredictions.find(p => p.isBanker)?.matchId || null
-  );
+  const [predictions, setPredictions] = useState<Record<string, MatchResult>>({});
+  const [bankerMatchId, setBankerMatchId] = useState<string | null>(null);
   const [showHowToPredict, setShowHowToPredict] = useState(false);
 
-  const timeRemaining = formatTimeRemainingCompact(currentRound.deadline);
+  useEffect(() => {
+    const fetchRoundData = async () => {
+      if (!user) {
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
+
+      const { data: activeRound, error: roundError } = await supabase
+        .from('rounds')
+        .select('id,round_number,round_type,deadline,status')
+        .eq('status', 'published')
+        .order('round_number', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (roundError || !activeRound) {
+        setRound(null);
+        setMatches([]);
+        setPredictions({});
+        setBankerMatchId(null);
+        setLoading(false);
+        return;
+      }
+
+      const roundTypeValue = activeRound.round_type === 'standalone' ? 'standalone' : 'round';
+      const roundStatusValue: 'open' | 'locked' | 'final' =
+        activeRound.status === 'final'
+          ? 'final'
+          : new Date(activeRound.deadline).getTime() < Date.now()
+            ? 'locked'
+            : 'open';
+
+      setRound({
+        id: activeRound.id,
+        number: activeRound.round_number,
+        roundType: roundTypeValue,
+        deadline: activeRound.deadline,
+        status: activeRound.status,
+      });
+      setRoundType(roundTypeValue);
+      setRoundStatus(roundStatusValue);
+
+      const { data: matchRows } = await supabase
+        .from('matches')
+        .select('id,round_id,home_team_id,away_team_id,kickoff,result,include_in_round,is_match_of_the_week,home_team:home_team_id(name,short_name,logo_url),away_team:away_team_id(name,short_name,logo_url)')
+        .eq('round_id', activeRound.id)
+        .order('kickoff', { ascending: true });
+
+      const formattedMatches = (matchRows || []).map((match) => {
+        const homeTeamData = Array.isArray(match.home_team) ? match.home_team[0] : match.home_team;
+        const awayTeamData = Array.isArray(match.away_team) ? match.away_team[0] : match.away_team;
+
+        return {
+          id: match.id,
+          roundId: match.round_id,
+          kickoff: new Date(match.kickoff),
+          result: match.result,
+          includeInRound: match.include_in_round,
+          isMatchOfTheWeek: match.is_match_of_the_week,
+          homeTeam: {
+            id: match.home_team_id,
+            name: homeTeamData?.name || 'Home',
+            shortName: homeTeamData?.short_name || '',
+            logoUrl: homeTeamData?.logo_url || '',
+          },
+          awayTeam: {
+            id: match.away_team_id,
+            name: awayTeamData?.name || 'Away',
+            shortName: awayTeamData?.short_name || '',
+            logoUrl: awayTeamData?.logo_url || '',
+          },
+        };
+      });
+
+      setMatches(formattedMatches);
+
+      const { data: predictionRows } = await supabase
+        .from('predictions')
+        .select('match_id,prediction,is_banker')
+        .eq('round_id', activeRound.id)
+        .eq('user_id', user.id);
+
+      const predictionMap = (predictionRows || []).reduce<Record<string, MatchResult>>(
+        (acc, row) => ({ ...acc, [row.match_id]: row.prediction }),
+        {}
+      );
+
+      setPredictions(predictionMap);
+      setBankerMatchId(predictionRows?.find((row) => row.is_banker)?.match_id || null);
+      setLoading(false);
+    };
+
+    fetchRoundData();
+  }, [user]);
+
+  const timeRemaining = round ? formatTimeRemainingCompact(new Date(round.deadline)) : '';
 
   const formatDate = (date: Date) => {
     return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
@@ -56,20 +159,44 @@ export default function ThisRoundV1() {
     ? matches.filter(m => m.includeInRound).slice(0, 1)
     : matches.filter(m => m.includeInRound);
 
+  if (loading) {
+    return (
+      <LayoutV1>
+        <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+          <div className="text-center">
+            <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-slate-400">Loading round...</p>
+          </div>
+        </div>
+      </LayoutV1>
+    );
+  }
+
+  if (!round) {
+    return (
+      <LayoutV1>
+        <Card className="bg-slate-900 border-slate-800 p-6">
+          <div className="text-white text-lg font-semibold mb-2">No active round</div>
+          <div className="text-slate-400">Publish a round to start predictions.</div>
+        </Card>
+      </LayoutV1>
+    );
+  }
+
   return (
     <LayoutV1>
       {/* Round Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
         <div>
           <div className="flex items-center gap-3 mb-2">
-            <h1 className="text-2xl sm:text-3xl font-bold text-white">Round {currentRound.number}</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold text-white">Round {round.number}</h1>
             <Badge className={roundStatus === 'open' ? 'bg-green-500/20 text-green-400 border-green-500/30' : roundStatus === 'locked' ? 'bg-orange-500/20 text-orange-400 border-orange-500/30' : 'bg-green-500/20 text-green-400 border-green-500/30'}>
               {roundStatus.toUpperCase()}
             </Badge>
           </div>
           <div className="flex items-center gap-2 text-sm text-slate-400">
             <Clock className="w-4 h-4" />
-            <span>{roundStatus === 'open' ? `${timeRemaining} remaining` : `Deadline: ${formatDate(currentRound.deadline)}`}</span>
+            <span>{roundStatus === 'open' ? `${timeRemaining} remaining` : `Deadline: ${formatDate(new Date(round.deadline))}`}</span>
           </div>
         </div>
         <Button size="sm" onClick={() => setShowHowToPredict(true)} className="bg-blue-600 hover:bg-blue-700 text-white">
@@ -98,7 +225,7 @@ export default function ThisRoundV1() {
         <div className="p-4 border-b border-slate-800 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-white">My Predictions</h2>
           {!canEdit && (
-            <Link href={`/version1/compare/${currentRound.id}`}>
+            <Link href={`/version1/compare/${round.id}`}>
               <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white">
                 <Users2 className="w-4 h-4 sm:mr-2" />
                 <span className="hidden sm:inline">Compare</span>
@@ -164,7 +291,7 @@ export default function ThisRoundV1() {
             // Banker only: 6 or -3
             // MOTW only: 6 or 0
             // Banker + MOTW: 12 or -6
-            let points = null;
+            let points: number | null = null;
             if (showResults) {
               if (isBanker && isMOTW) {
                 // Both banker and MOTW
@@ -248,10 +375,38 @@ export default function ThisRoundV1() {
             </div>
             <Button 
               onClick={() => {
-                // In real app, this would save to database
-                // Status stays OPEN so user can continue editing
-                toast.success('Predictions saved! You can continue editing until the round is locked.');
-                setIsSaved(true); // Mark as saved
+                if (!user) {
+                  toast.error('You must be logged in to save predictions.');
+                  return;
+                }
+
+                const rows = displayMatches
+                  .filter(m => predictions[m.id])
+                  .map(m => ({
+                    user_id: user.id,
+                    match_id: m.id,
+                    round_id: round.id,
+                    prediction: predictions[m.id],
+                    is_banker: roundType === 'round' && bankerMatchId === m.id,
+                    is_locked: false,
+                  }));
+
+                if (rows.length !== displayMatches.length) {
+                  toast.error('Please complete all predictions before saving.');
+                  return;
+                }
+
+                supabase
+                  .from('predictions')
+                  .upsert(rows, { onConflict: 'user_id,match_id' })
+                  .then(({ error }) => {
+                    if (error) {
+                      toast.error('Failed to save predictions.');
+                      return;
+                    }
+                    toast.success('Predictions saved! You can continue editing until the round is locked.');
+                    setIsSaved(true);
+                  });
               }} 
               className="bg-blue-600 hover:bg-blue-700 text-white"
             >
