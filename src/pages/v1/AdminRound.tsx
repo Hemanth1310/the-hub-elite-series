@@ -46,7 +46,6 @@ export default function AdminRoundV1() {
   
   const [status, setStatus] = useState<'scheduled' | 'active' | 'final'>(isNew ? 'scheduled' : 'scheduled');
   const [deadline, setDeadline] = useState('');
-  const [originalRound, setOriginalRound] = useState('');
   const [roundNumberInput, setRoundNumberInput] = useState(isNew ? '' : roundNumber);
   const [competitionId, setCompetitionId] = useState<string | null>(null);
   const [roundId, setRoundId] = useState<string | null>(null);
