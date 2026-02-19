@@ -396,6 +396,23 @@ export default function AdminRoundV1() {
       return;
     }
     
+    const updates = await Promise.all(
+      matches.map((match) =>
+        supabase
+          .from('matches')
+          .update({
+            result: match.result,
+            is_match_of_the_week: matchOfTheWeek === match.id,
+          })
+          .eq('id', match.id)
+      )
+    );
+
+    if (updates.some(({ error }) => error)) {
+      toast.error('Failed to save match results before finalizing');
+      return;
+    }
+
     if (roundId) {
       const { error } = await supabase
         .from('rounds')
