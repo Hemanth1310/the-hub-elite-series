@@ -8,32 +8,55 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Plus, Pencil } from 'lucide-react';
-import { competitions } from '@/mockData';
+import { useEffect } from 'react';
+import { supabase } from '@/lib/supabase';
 import { Link } from 'wouter';
 import { toast } from 'sonner';
 import LayoutV1 from './Layout';
 
-// Mock data for rounds
-const rounds = [
-  { number: 14, firstMatchDate: '2025-01-11', gamesCount: 8, status: 'final' },
-  { number: 15, firstMatchDate: '2025-01-18', gamesCount: 8, status: 'final' },
-  { number: 16, firstMatchDate: '2025-01-25', gamesCount: 8, status: 'active' },
-  { number: 17, firstMatchDate: '2025-02-01', gamesCount: 8, status: 'scheduled' },
-  { number: 18, firstMatchDate: '2025-02-08', gamesCount: 7, status: 'scheduled' },
-];
-
-// Mock data for postponed games
-const postponedGames = [
-  { id: 1, originalRound: 16, matchDate: '2025-02-15', homeTeam: 'MCI', awayTeam: 'NEW', status: 'scheduled' },
-  { id: 2, originalRound: 14, matchDate: '2025-02-12', homeTeam: 'EVE', awayTeam: 'LIV', status: 'active' },
-];
 
 export default function AdminV1() {
-  const [selectedCompetition, setSelectedCompetition] = useState('c1');
+  const [competitions, setCompetitions] = useState<any[]>([]);
+  const [rounds, setRounds] = useState<any[]>([]);
+  const [postponedGames, setPostponedGames] = useState<any[]>([]);
+  const [selectedCompetition, setSelectedCompetition] = useState<string>('');
   const [viewMode, setViewMode] = useState<'rounds' | 'postponed'>('rounds');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [competitionName, setCompetitionName] = useState('');
   const [isActive, setIsActive] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchAdminData = async () => {
+      setLoading(true);
+      // Competitions
+      const { data: comps } = await supabase.from('competitions').select('*').order('created_at', { ascending: false });
+      setCompetitions(comps || []);
+      if (comps && comps.length > 0 && !selectedCompetition) {
+        setSelectedCompetition(comps[0].id);
+      }
+      // Rounds
+      if (selectedCompetition) {
+        const { data: rds } = await supabase
+          .from('rounds')
+          .select('*')
+          .eq('competition_id', selectedCompetition)
+          .order('number', { ascending: true });
+        setRounds(rds || []);
+      }
+      // Postponed games
+      const { data: postponed } = await supabase
+        .from('matches')
+        .select('*')
+        .eq('is_postponed', true)
+        .order('match_date', { ascending: true });
+      setPostponedGames(postponed || []);
+      setLoading(false);
+    };
+    fetchAdminData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCompetition]);
+
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -62,9 +85,9 @@ export default function AdminV1() {
             <SelectValue />
           </SelectTrigger>
           <SelectContent className="bg-slate-800 border-slate-700">
-            {competitions.map(comp => (
+            {competitions.map((comp: any) => (
               <SelectItem key={comp.id} value={comp.id} className="text-white focus:bg-slate-700 focus:text-white">
-                {comp.name} {comp.isActive && '(Active)'}
+                {comp.name} {comp.is_active && '(Active)'}
               </SelectItem>
             ))}
           </SelectContent>
@@ -145,14 +168,14 @@ export default function AdminV1() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {rounds.map(round => (
-                <TableRow key={round.number} className="border-slate-800 hover:bg-slate-800/50">
+              {rounds.map((round: any) => (
+                <TableRow key={round.id} className="border-slate-800 hover:bg-slate-800/50">
                   <TableCell className="font-medium text-white">Round {round.number}</TableCell>
-                  <TableCell className="text-slate-300">{round.firstMatchDate}</TableCell>
-                  <TableCell className="text-center text-slate-300">{round.gamesCount}</TableCell>
+                  <TableCell className="text-slate-300">{round.first_match_date?.slice(0, 10)}</TableCell>
+                  <TableCell className="text-center text-slate-300">{round.games_count ?? '--'}</TableCell>
                   <TableCell>
                     <Badge className={getStatusColor(round.status)}>
-                      {round.status.toUpperCase()}
+                      {round.status?.toUpperCase()}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
@@ -193,16 +216,16 @@ export default function AdminV1() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {postponedGames.map(game => (
+              {postponedGames.map((game: any) => (
                 <TableRow key={game.id} className="border-slate-800 hover:bg-slate-800/50">
-                  <TableCell className="text-slate-300">Round {game.originalRound}</TableCell>
-                  <TableCell className="text-slate-300">{game.matchDate}</TableCell>
+                  <TableCell className="text-slate-300">Round {game.original_round ?? '--'}</TableCell>
+                  <TableCell className="text-slate-300">{game.match_date?.slice(0, 10)}</TableCell>
                   <TableCell className="font-medium text-white">
-                    {game.homeTeam} - {game.awayTeam}
+                    {game.home_team} - {game.away_team}
                   </TableCell>
                   <TableCell>
                     <Badge className={getStatusColor(game.status)}>
-                      {game.status.toUpperCase()}
+                      {game.status?.toUpperCase()}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
