@@ -13,6 +13,7 @@ export default function DashboardV1() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [roundStatus, setRoundStatus] = useState<'open' | 'locked' | 'active' | 'completed' | 'final'>('open');
+  const [predictionsComplete, setPredictionsComplete] = useState(false);
   const [currentRoundNumber, setCurrentRoundNumber] = useState<number | null>(null);
   const [timeRemaining, setTimeRemaining] = useState('');
   const [userPosition, setUserPosition] = useState<number | null>(null);
@@ -49,6 +50,24 @@ export default function DashboardV1() {
         const isLocked = deadline.getTime() < Date.now();
         setRoundStatus(isLocked ? 'locked' : 'open');
         setTimeRemaining(formatTimeRemainingCompact(deadline));
+
+        const { count: matchCount } = await supabase
+          .from('matches')
+          .select('id', { count: 'exact', head: true })
+          .eq('round_id', roundRow.id)
+          .eq('include_in_round', true);
+
+        const { count: predictionCount } = await supabase
+          .from('predictions')
+          .select('id', { count: 'exact', head: true })
+          .eq('round_id', roundRow.id)
+          .eq('user_id', user.id);
+
+        if (matchCount && predictionCount) {
+          setPredictionsComplete(predictionCount >= matchCount);
+        } else {
+          setPredictionsComplete(false);
+        }
       } else {
         const { data: finalRound } = await supabase
           .from('rounds')
@@ -59,6 +78,7 @@ export default function DashboardV1() {
           .maybeSingle();
         setCurrentRoundNumber(finalRound?.round_number || null);
         setRoundStatus(finalRound ? 'final' : 'open');
+        setPredictionsComplete(false);
       }
 
       const { data: leaderboardRow } = await supabase
@@ -273,8 +293,10 @@ export default function DashboardV1() {
             <div className="flex items-center justify-between pt-3 border-t border-slate-800">
               <div>
                 <div className="text-slate-400 text-xs mb-1">Position Change</div>
-                <div className={`flex items-center gap-1 ${lastRoundPositionChange > 0 ? 'text-green-400' : lastRoundPositionChange < 0 ? 'text-red-400' : 'text-slate-400'}`}>
-                  {lastRoundPositionChange > 0 ? (
+                <div className={`flex items-center gap-1 ${lastRoundPositionChange === null ? 'text-slate-400' : lastRoundPositionChange > 0 ? 'text-green-400' : lastRoundPositionChange < 0 ? 'text-red-400' : 'text-slate-400'}`}>
+                  {lastRoundPositionChange === null ? (
+                    <span className="text-base font-semibold">—</span>
+                  ) : lastRoundPositionChange > 0 ? (
                     <>
                       <TrendingUp className="w-3 h-3" />
                       <span className="text-base font-semibold">+{lastRoundPositionChange}</span>
