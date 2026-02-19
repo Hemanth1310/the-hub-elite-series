@@ -1,10 +1,29 @@
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { TrendingUp, TrendingDown, Award } from 'lucide-react';
-import { bestRounds, worstRounds } from '@/mockData';
+import { useEffect, useState } from 'react';
+import { supabase } from '@/lib/supabase';
 import LayoutV1 from './Layout';
 
 export default function StatsV1() {
+  const [bestRounds, setBestRounds] = useState<any[]>([]);
+  const [worstRounds, setWorstRounds] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      setLoading(true);
+      // Fetch best rounds (top 10 by points)
+      const { data: best } = await supabase.rpc('get_best_rounds');
+      setBestRounds(best || []);
+      // Fetch worst rounds (bottom 10 by points)
+      const { data: worst } = await supabase.rpc('get_worst_rounds');
+      setWorstRounds(worst || []);
+      setLoading(false);
+    };
+    fetchStats();
+  }, []);
+
   return (
     <LayoutV1>
       <div className="mb-8">
@@ -27,9 +46,9 @@ export default function StatsV1() {
 
           {/* Mobile View */}
           <div className="sm:hidden space-y-3">
-            {bestRounds.map(entry => (
+            {bestRounds.map((entry: any, idx: number) => (
               <div
-                key={`best-${entry.rank}`}
+                key={`best-${idx}`}
                 className="bg-slate-800/50 rounded-lg p-3 border border-slate-700"
               >
                 <div className="flex items-center justify-between mb-2">
@@ -38,14 +57,14 @@ export default function StatsV1() {
                     <span className={`font-bold text-sm ${entry.rank <= 3 ? 'text-yellow-400' : 'text-slate-400'}`}>
                       #{entry.rank}
                     </span>
-                    <span className="text-white font-semibold">{entry.userName}</span>
+                    <span className="text-white font-semibold">{entry.user_name}</span>
                   </div>
                   <Badge className="bg-green-500/20 text-green-400 border-green-500/30 font-bold">
                     {entry.points}
                   </Badge>
                 </div>
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-slate-400">Round {entry.roundNumber}</span>
+                  <span className="text-slate-400">Round {entry.round_number}</span>
                   <div className="flex items-center gap-3">
                     <span className="text-slate-400">{entry.correct} correct</span>
                     <span className="text-green-400 text-lg">✓</span>
@@ -69,8 +88,8 @@ export default function StatsV1() {
                 </tr>
               </thead>
               <tbody>
-                {bestRounds.map(entry => (
-                  <tr key={`best-${entry.rank}`} className="border-b border-slate-800 hover:bg-slate-800/50">
+                {bestRounds.map((entry: any, idx: number) => (
+                  <tr key={`best-${idx}`} className="border-b border-slate-800 hover:bg-slate-800/50">
                     <td className="py-3">
                       <div className="flex items-center gap-2">
                         {entry.rank === 1 && <Award className="w-4 h-4 text-yellow-400" />}
@@ -79,8 +98,8 @@ export default function StatsV1() {
                         </span>
                       </div>
                     </td>
-                    <td className="text-white font-medium py-3">{entry.userName}</td>
-                    <td className="text-slate-300 py-3">Round {entry.roundNumber}</td>
+                    <td className="text-white font-medium py-3">{entry.user_name}</td>
+                    <td className="text-slate-300 py-3">Round {entry.round_number}</td>
                     <td className="text-right font-bold text-green-400 py-3">{entry.points}</td>
                     <td className="text-right text-slate-300 py-3">{entry.correct}</td>
                     <td className="text-center py-3">
@@ -107,22 +126,22 @@ export default function StatsV1() {
 
           {/* Mobile View */}
           <div className="sm:hidden space-y-3">
-            {worstRounds.map(entry => (
+            {worstRounds.map((entry: any, idx: number) => (
               <div
-                key={`worst-${entry.rank}`}
+                key={`worst-${idx}`}
                 className="bg-slate-800/50 rounded-lg p-3 border border-slate-700"
               >
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
                     <span className="font-bold text-sm text-slate-400">#{entry.rank}</span>
-                    <span className="text-white font-semibold">{entry.userName}</span>
+                    <span className="text-white font-semibold">{entry.user_name}</span>
                   </div>
                   <Badge className="bg-red-500/20 text-red-400 border-red-500/30 font-bold">
                     {entry.points}
                   </Badge>
                 </div>
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-slate-400">Round {entry.roundNumber}</span>
+                  <span className="text-slate-400">Round {entry.round_number}</span>
                   <div className="flex items-center gap-3">
                     <span className="text-slate-400">{entry.correct} correct</span>
                     <span className="text-red-400 text-lg">✗</span>
@@ -146,13 +165,13 @@ export default function StatsV1() {
                 </tr>
               </thead>
               <tbody>
-                {worstRounds.map(entry => (
-                  <tr key={`worst-${entry.rank}`} className="border-b border-slate-800 hover:bg-slate-800/50">
+                {worstRounds.map((entry: any, idx: number) => (
+                  <tr key={`worst-${idx}`} className="border-b border-slate-800 hover:bg-slate-800/50">
                     <td className="py-3">
                       <span className="font-bold text-slate-400">#{entry.rank}</span>
                     </td>
-                    <td className="text-white font-medium py-3">{entry.userName}</td>
-                    <td className="text-slate-300 py-3">Round {entry.roundNumber}</td>
+                    <td className="text-white font-medium py-3">{entry.user_name}</td>
+                    <td className="text-slate-300 py-3">Round {entry.round_number}</td>
                     <td className="text-right font-bold text-red-400 py-3">{entry.points}</td>
                     <td className="text-right text-slate-300 py-3">{entry.correct}</td>
                     <td className="text-center py-3">
