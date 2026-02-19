@@ -1,0 +1,361 @@
+SCORING LOGIC & POINT CALCULATION
+===================================
+
+Updated: January 2025 (Version A159)
+
+POINT VALUES
+------------
+
+Regular Match:
+- Correct prediction: 3 points
+- Wrong prediction: 0 points
+
+Banker Pick (Player Selected):
+- Correct prediction: 6 points (double)
+- Wrong prediction: -3 points (penalty)
+
+Match of the Week (Admin Selected):
+- Correct prediction: 6 points
+- Wrong prediction: 0 points (no penalty)
+
+Banker + MOTW (Same Match):
+- Correct prediction: 12 points (stacked double)
+- Wrong prediction: -6 points (stacked penalty)
+
+
+SCORING TABLE
+-------------
+Match Type   | Banker | Correct | Wrong
+-------------|--------|---------|-------
+Regular      | No     | +3      | 0
+Regular      | Yes    | +6      | -3
+MOTW         | No     | +6      | 0
+MOTW         | Yes    | +12     | -6
+
+
+RULES
+-----
+
+Banker:
+- Each player selects ONE banker pick per round
+- Must be on a match included in the round
+- Can be on the MOTW for maximum points/risk
+- Doubles the points (positive or negative)
+- NOT allowed for standalone games
+- Required for regular rounds (validation enforced)
+
+Match of the Week (MOTW):
+- Admin designates ONE match per round
+- Can be any match in the round
+- Doubles the base points to 6 (vs regular 3)
+- No penalty if wrong (0 points, unless banker)
+- NOT designated for standalone games
+- Visually marked with yellow badge in UI
+
+Prediction Submission:
+- Players must predict ALL matches in the round
+- Players can save multiple times while round is OPEN
+- Clicking "Save" does NOT lock predictions
+- Players can edit after saving (while still OPEN)
+- Must save before admin/system locks the round
+
+Round Status Flow:
+1. OPEN - Players can submit and edit predictions freely
+2. LOCKED - Auto-locked 5 min before first match, no more edits allowed
+3. FINAL - All matches complete, results and points displayed
+
+Standalone Matches:
+- 1-4 matches per standalone "round"
+- NO banker allowed
+- NO MOTW designation
+- All matches worth 3/0 points
+- Separate from regular rounds
+
+
+CALCULATION FLOW
+----------------
+
+1. Admin enters match result (H/U/B)
+2. System calculates points using formula:
+   
+   IF (prediction == result):
+     IF (isBanker && isMOTW): points = 12
+     ELSE IF (isBanker): points = 6
+     ELSE IF (isMOTW): points = 6
+     ELSE: points = 3
+   ELSE:
+     IF (isBanker && isMOTW): points = -6
+     ELSE IF (isBanker): points = -3
+     ELSE: points = 0
+
+3. Points stored in predictions table (or calculated on-the-fly)
+4. Total points = sum of all match points in round
+
+
+EXAMPLES
+--------
+
+Example 1: Regular Match
+- Player predicts: H
+- Result: H
+- Points: +3 ✅
+
+Example 2: Wrong Regular Match
+- Player predicts: H
+- Result: B
+- Points: 0
+
+Example 3: Banker Correct
+- Player predicts: H (with banker)
+- Result: H
+- Points: +6 ✅
+
+Example 4: Banker Wrong
+- Player predicts: H (with banker)
+- Result: B
+- Points: -3 ❌
+
+Example 5: MOTW Correct (No Banker)
+- Match is MOTW
+- Player predicts: U (no banker)
+- Result: U
+- Points: +6 ✅
+
+Example 6: MOTW Wrong (No Banker)
+- Match is MOTW
+- Player predicts: U (no banker)
+- Result: H
+- Points: 0
+
+Example 7: MOTW + Banker Correct (MAXIMUM POINTS)
+- Match is MOTW
+- Player predicts: H (with banker)
+- Result: H
+- Points: +12 🎉
+
+Example 8: MOTW + Banker Wrong (MAXIMUM PENALTY)
+- Match is MOTW
+- Player predicts: B (with banker)
+- Result: H
+- Points: -6 💥
+
+
+STRATEGIC IMPLICATIONS
+----------------------
+
+Safe Strategy:
+- Put banker on non-MOTW match you're confident in
+- Still get +6 from MOTW even if you're unsure
+- Lower risk: max -3 penalty on banker
+
+Aggressive Strategy:
+- Put banker on MOTW match for potential +12
+- High risk: -6 penalty if wrong
+- Best when very confident in MOTW outcome
+
+Conservative Strategy:
+- Avoid risky banker picks
+- Play MOTW safe
+- Consistent 3-6 point range per match
+
+
+ROUND SCORING
+-------------
+
+Regular Round Total:
+- 8 matches
+- Minimum possible: -6 (wrong banker on MOTW, all else wrong)
+- Maximum possible: 42 (banker on MOTW correct = 12, plus 5 MOTW-free matches = 15, plus 2 other correct = 6)
+- Typical good score: 15-21 points
+
+Standalone Total:
+- 1-4 matches
+- Minimum possible: 0
+- Maximum possible: 3 × number of matches
+- No risk of negative points
+
+Round Winner:
+- Player with highest total points for that round
+- Displayed on Rounds page
+
+Leaderboard:
+- Cumulative points across all finalized rounds
+- Updated when each round status changes to FINAL
+
+
+DATABASE IMPLEMENTATION
+-----------------------
+
+Required Columns:
+
+matches table:
+- is_match_of_the_week: BOOLEAN (default false)
+- result: VARCHAR(1) CHECK (result IN ('H', 'U', 'B'))
+
+predictions table:
+- is_banker: BOOLEAN
+- points: INTEGER (optional, can calculate on-the-fly)
+
+rounds table:
+- round_type: TEXT CHECK (round_type IN ('regular', 'standalone'))
+- status: TEXT CHECK (status IN ('open', 'locked', 'final'))
+
+Validation:
+- Only one MOTW per round (unique index)
+- Exactly one banker per user per regular round
+- Zero bankers for standalone rounds
+- All predictions required before locking
+
+
+CALCULATION FUNCTION (Reference)
+---------------------------------
+
+function calculateMatchPoints(
+  prediction: string,
+  actualResult: string,
+  isBanker: boolean,
+  isMOTW: boolean
+): number {
+  const isCorrect = prediction === actualResult;
+  
+  // Banker + MOTW (same match)
+  if (isBanker && isMOTW) {
+    return isCorrect ? 12 : -6;
+  }
+  
+  // Banker only
+  if (isBanker) {
+    return isCorrect ? 6 : -3;
+  }
+  
+  // MOTW only
+  if (isMOTW) {
+    return isCorrect ? 6 : 0;
+  }
+  
+  // Regular match
+  return isCorrect ? 3 : 0;
+}
+
+
+AUTO-LOCK LOGIC (Reference)
+----------------------------
+
+// Run every minute via cron/scheduler
+async function autoLockRounds() {
+  const fiveMinutesFromNow = new Date(Date.now() + 5 * 60 * 1000);
+  
+  // Lock all open rounds approaching deadline
+  await supabase
+    .from('rounds')
+    .update({ status: 'locked' })
+    .eq('status', 'open')
+    .lte('deadline', fiveMinutesFromNow.toISOString());
+}
+
+// Run after each match is marked complete
+async function autoFinalizeRounds() {
+  const { data: lockedRounds } = await supabase
+    .from('rounds')
+    .select('id')
+    .eq('status', 'locked');
+  
+  for (const round of lockedRounds) {
+    const { data: matches } = await supabase
+      .from('matches')
+      .select('status')
+      .eq('round_id', round.id)
+      .eq('include_in_round', true);
+    
+    const allComplete = matches.every(m => 
+      m.status === 'finished' || m.status === 'completed'
+    );
+    
+    if (allComplete) {
+      await supabase
+        .from('rounds')
+        .update({ status: 'final' })
+        .eq('id', round.id);
+    }
+  }
+}
+
+
+EDGE CASES
+----------
+
+Incomplete Predictions:
+- If user hasn't completed all predictions when round locks
+- Those matches score 0 points
+- Validation should prevent this (require all predictions)
+
+Missing Banker:
+- Regular round requires exactly one banker
+- Should be validated before save
+- Show error: "You must select one banker"
+
+Multiple Bankers:
+- Should be prevented by UI and backend validation
+- Show error: "You can only select one banker"
+
+Postponed Matches:
+- Set include_in_round = false
+- Do not count toward round scoring
+- Can be bundled into standalone round later
+
+MOTW Not Set:
+- If admin forgets to set MOTW
+- Round proceeds with all matches as regular (3/0)
+- Banker still applies (6/-3)
+
+
+TESTING SCENARIOS
+-----------------
+
+Scenario 1: Perfect Round
+- All 8 predictions correct
+- Banker correct
+- MOTW correct (not banker)
+- Score: 6 (banker) + 6 (MOTW) + 18 (6×3) = 30 points
+
+Scenario 2: Banker on MOTW, All Correct
+- Banker + MOTW correct
+- Other 7 correct
+- Score: 12 (banker+MOTW) + 21 (7×3) = 33 points
+
+Scenario 3: All Wrong
+- All 8 predictions wrong
+- Banker wrong (not MOTW)
+- Score: -3 (banker penalty) + 0 (7×0) = -3 points
+
+Scenario 4: Banker on MOTW, All Wrong
+- Banker + MOTW wrong
+- Other 7 wrong
+- Score: -6 (banker+MOTW penalty) + 0 (7×0) = -6 points
+
+Scenario 5: Mixed Results
+- Banker correct (not MOTW): +6
+- MOTW correct: +6
+- 3 other correct: +9
+- 3 wrong: 0
+- Total: 21 points
+
+
+VERSION HISTORY
+---------------
+
+Version A159 (Jan 2025):
+- Updated MOTW scoring rules (6/0 vs 3/0)
+- Added Banker + MOTW stacking (12/-6)
+- Clarified round status flow (open/locked/final)
+- Added standalone game rules
+- Removed "locking by user" concept (auto-lock only)
+- Added save/edit multiple times while open
+
+Version A80 (Initial):
+- Basic scoring rules
+- Banker concept introduced
+- MOTW concept introduced
+- Manual locking by users
+
+=== END OF DOCUMENT ===

@@ -1,0 +1,447 @@
+API FUNCTIONS IMPLEMENTATION GUIDE
+=====================================
+
+Setup:
+------
+import { createClient } from '@supabase/supabase-js'
+
+const supabase = createClient(
+  process.env.VITE_SUPABASE_URL,
+  process.env.VITE_SUPABASE_ANON_KEY
+)
+
+
+=====================================
+ADMIN FUNCTIONS
+=====================================
+
+1. Send Invitation
+------------------
+async function sendInvitation(email: string, adminUserId: string) {
+  const { data, error } = await supabase
+    .from('invitations')
+    .insert({
+      email,
+      competition_id: ACTIVE_COMPETITION_ID,
+      invited_by: adminUserId
+    })
+    .select()
+    .single();
+  
+  if (error) throw error;
+  
+  const inviteLink = `${APP_URL}/join/${data.token}`;
+  await sendEmail(email, inviteLink);
+  
+  return data;
+}
+
+
+2. Create Round
+---------------
+async function createRound(roundNumber: number, deadline: Date) {
+  const { data, error } = await supabase
+    .from('rounds')
+    .insert({
+      competition_id: ACTIVE_COMPETITION_ID,
+      round_number: roundNumber,
+      deadline: deadline.toISOString(),
+      status: 'scheduled'
+    })
+    .select()
+    .single();
+  
+  return { data, error };
+}
+
+
+3. Add Match
+------------
+async function addMatch(
+  roundId: string,
+  homeTeamId: string,
+  awayTeamId: string,
+  kickoff: Date
+) {
+  const { data, error } = await supabase
+    .from('matches')
+    .insert({
+      round_id: roundId,
+      home_team_id: homeTeamId,
+      away_team_id: awayTeamId,
+      kickoff: kickoff.toISOString(),
+      include_in_round: true
+    })
+    .select()
+    .single();
+  
+  return { data, error };
+}
+
+
+4. Set Match of the Week
+-------------------------
+async function setMatchOfTheWeek(matchId: string) {
+  const { data: match } = await supabase
+    .from('matches')
+    .select('round_id')
+    .eq('id', matchId)
+    .single();
+  
+  await supabase
+    .from('matches')
+    .update({ is_match_of_the_week: false })
+    .eq('round_id', match.round_id);
+  
+  const { data, error } = await supabase
+    .from('matches')
+    .update({ is_match_of_the_week: true })
+    .eq('id', matchId)
+    .select()
+    .single();
+  
+  return { data, error };
+}
+
+
+5. Publish Round
+----------------
+async function publishRound(roundId: string) {
+  const { data, error } = await supabase
+    .from('rounds')
+    .update({ status: 'published' })
+    .eq('id', roundId)
+    .select()
+    .single();
+  
+  return { data, error };
+}
+
+
+6. Update Match Result
+----------------------
+async function updateMatchResult(matchId: string, result: 'H' | 'U' | 'B') {
+  const { data, error } = await supabase
+    .from('matches')
+    .update({ 
+      result: result,
+      status: 'finished'
+    })
+    .eq('id', matchId)
+    .select()
+    .single();
+  
+  return { data, error };
+}
+
+
+7. Finalize Round
+-----------------
+async function finalizeRound(roundId: string) {
+  const { data, error } = await supabase
+    .from('rounds')
+    .update({ status: 'final' })
+    .eq('id', roundId)
+    .select()
+    .single();
+  
+  return { data, error };
+}
+
+
+=====================================
+PLAYER FUNCTIONS
+=====================================
+
+8. Accept Invitation & Register
+--------------------------------
+async function acceptInvitation(token: string, name: string, password: string) {
+  const { data: invitation, error: invError } = await supabase
+    .from('invitations')
+    .select('*')
+    .eq('token', token)
+    .eq('status', 'pending')
+    .gt('expires_at', new Date().toISOString())
+    .single();
+  
+  if (invError) throw new Error('Invalid or expired invitation');
+  
+  const { data: authData, error: authError } = await supabase.auth.signUp({
+    email: invitation.email,
+    password: password,
+    options: {
+      data: {
+        name: name,
+        invited_by: invitation.invited_by
+      }
+    }
+  });
+  
+  if (authError) throw authError;
+  
+  await supabase
+    .from('invitations')
+    .update({ status: 'accepted' })
+    .eq('id', invitation.id);
+  
+  return authData;
+}
+
+
+9. Get Current Round
+--------------------
+async function getCurrentRound() {
+  const { data, error } = await supabase
+    .from('rounds')
+    .select(`
+      *,
+      matches (
+        *,
+        home_team:teams!matches_home_team_id_fkey(*),
+        away_team:teams!matches_away_team_id_fkey(*)
+      )
+    `)
+    .eq('status', 'published')
+    .order('round_number', { ascending: false })
+    .limit(1)
+    .single();
+  
+  return { data, error };
+}
+
+
+10. Submit Prediction
+---------------------
+async function submitPrediction(
+  matchId: string,
+  prediction: 'H' | 'U' | 'B',
+  userId: string
+) {
+  const { data, error } = await supabase
+    .from('predictions')
+    .upsert({
+      user_id: userId,
+      match_id: matchId,
+      prediction: prediction,
+      is_locked: false
+    })
+    .select()
+    .single();
+  
+  return { data, error };
+}
+
+
+11. Set Banker
+--------------
+async function setBanker(matchId: string, userId: string) {
+  const { data: match } = await supabase
+    .from('matches')
+    .select('round_id')
+    .eq('id', matchId)
+    .single();
+  
+  const { data: roundMatches } = await supabase
+    .from('matches')
+    .select('id')
+    .eq('round_id', match.round_id);
+  
+  const matchIds = roundMatches.map(m => m.id);
+  
+  await supabase
+    .from('predictions')
+    .update({ is_banker: false })
+    .eq('user_id', userId)
+    .in('match_id', matchIds);
+  
+  const { data, error } = await supabase
+    .from('predictions')
+    .update({ is_banker: true })
+    .eq('user_id', userId)
+    .eq('match_id', matchId)
+    .select()
+    .single();
+  
+  return { data, error };
+}
+
+
+12. Lock Predictions
+--------------------
+async function lockMyPredictions(roundId: string, userId: string) {
+  const { data: matches } = await supabase
+    .from('matches')
+    .select('id')
+    .eq('round_id', roundId);
+  
+  const matchIds = matches.map(m => m.id);
+  
+  const { data, error } = await supabase
+    .from('predictions')
+    .update({ is_locked: true })
+    .eq('user_id', userId)
+    .in('match_id', matchIds)
+    .select();
+  
+  return { data, error };
+}
+
+
+13. Unlock Predictions
+----------------------
+async function unlockMyPredictions(roundId: string, userId: string) {
+  const { data: matches } = await supabase
+    .from('matches')
+    .select('id')
+    .eq('round_id', roundId);
+  
+  const matchIds = matches.map(m => m.id);
+  
+  const { data, error } = await supabase
+    .from('predictions')
+    .update({ is_locked: false })
+    .eq('user_id', userId)
+    .in('match_id', matchIds)
+    .select();
+  
+  return { data, error };
+}
+
+
+14. Get My Predictions
+----------------------
+async function getMyPredictions(roundId: string, userId: string) {
+  const { data, error } = await supabase
+    .from('predictions')
+    .select(`
+      *,
+      match:matches(*)
+    `)
+    .eq('user_id', userId)
+    .eq('match.round_id', roundId);
+  
+  return { data, error };
+}
+
+
+15. Get Leaderboard
+-------------------
+async function getLeaderboard() {
+  const { data, error } = await supabase
+    .from('leaderboard')
+    .select(`
+      *,
+      user:users(name, email)
+    `)
+    .order('current_rank', { ascending: true });
+  
+  return { data, error };
+}
+
+
+16. Get Round Stats
+-------------------
+async function getRoundStats(roundId: string) {
+  const { data, error } = await supabase
+    .from('round_stats')
+    .select(`
+      *,
+      user:users(name, email)
+    `)
+    .eq('round_id', roundId)
+    .order('rank', { ascending: true });
+  
+  return { data, error };
+}
+
+
+17. Compare Players
+-------------------
+async function comparePlayers(
+  roundId: string,
+  userId1: string,
+  userId2: string
+) {
+  const { data, error } = await supabase
+    .from('predictions')
+    .select(`
+      *,
+      match:matches(*),
+      user:users(name)
+    `)
+    .eq('match.round_id', roundId)
+    .in('user_id', [userId1, userId2]);
+  
+  return { data, error };
+}
+
+
+18. Get All Teams
+-----------------
+async function getAllTeams() {
+  const { data, error } = await supabase
+    .from('teams')
+    .select('*')
+    .order('name');
+  
+  return { data, error };
+}
+
+
+=====================================
+REALTIME SUBSCRIPTIONS
+=====================================
+
+Listen to Match Updates:
+------------------------
+const matchesSubscription = supabase
+  .channel('matches')
+  .on('postgres_changes', 
+    { 
+      event: '*', 
+      schema: 'public', 
+      table: 'matches' 
+    },
+    (payload) => {
+      console.log('Match updated:', payload);
+    }
+  )
+  .subscribe();
+
+
+Listen to Leaderboard Changes:
+-------------------------------
+const leaderboardSubscription = supabase
+  .channel('leaderboard')
+  .on('postgres_changes',
+    { 
+      event: '*', 
+      schema: 'public', 
+      table: 'leaderboard' 
+    },
+    (payload) => {
+      console.log('Leaderboard updated:', payload);
+    }
+  )
+  .subscribe();
+
+
+=====================================
+ERROR HANDLING
+=====================================
+
+All functions should include:
+
+try {
+  const { data, error } = await someSupabaseFunction();
+  
+  if (error) {
+    console.error('Supabase error:', error);
+    throw new Error(error.message);
+  }
+  
+  return data;
+} catch (err) {
+  console.error('Function error:', err);
+  throw err;
+}

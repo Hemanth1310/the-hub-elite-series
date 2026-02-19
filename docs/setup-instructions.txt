@@ -1,0 +1,268 @@
+DEVELOPER SETUP INSTRUCTIONS
+============================
+
+PREREQUISITES
+-------------
+- Node.js 18+ installed
+- Git installed
+- Supabase account (free tier)
+- Code editor (VS Code recommended)
+
+
+=========================
+WEEK 1: Setup & Database
+=========================
+
+Day 1-2: Environment Setup
+--------------------------
+
+1. Clone/Extract Frontend Code
+   cd premier-league-predictions
+   npm install
+
+2. Create Supabase Project
+   - Go to supabase.com
+   - Create new project
+   - Save your credentials:
+     * Project URL
+     * Anon/Public Key
+     * Service Role Key (keep secret)
+
+3. Run Database Schema
+   - Open Supabase SQL Editor
+   - Copy entire database-schema.sql file
+   - Run it
+   - Verify all tables created
+
+4. Set Environment Variables
+   Create .env.local:
+   
+   VITE_SUPABASE_URL=your_project_url
+   VITE_SUPABASE_ANON_KEY=your_anon_key
+   VITE_APP_URL=http://localhost:5173
+
+5. Test Local Development
+   npm run dev
+   
+   App should run on http://localhost:5173
+
+
+Day 3-5: Replace Mock Data
+---------------------------
+
+FILES TO MODIFY:
+
+Create API Layer:
+src/
+  api/
+    supabase.ts          # Supabase client setup
+    auth.ts              # Authentication functions
+    rounds.ts            # Round management
+    matches.ts           # Match management
+    predictions.ts       # Prediction functions
+    leaderboard.ts       # Leaderboard queries
+    admin.ts             # Admin functions
+
+Replace Mock Data:
+- src/mockData.ts → Use real Supabase queries
+- Update all pages to use API functions
+- Test each function individually
+
+
+=========================
+WEEK 2: Core Features
+=========================
+
+Day 1-2: Authentication
+-----------------------
+
+1. Implement Registration Flow
+   - Invitation token validation
+   - User signup via Supabase Auth
+   - Login/logout
+   - Session management
+
+2. Files to update:
+   src/pages/Register.tsx         # New file
+   src/pages/Login.tsx            # New file
+   src/contexts/AuthContext.tsx   # User state management
+
+
+Day 3-4: Player Features
+------------------------
+
+1. Prediction Submission
+   - Connect buttons to submitPrediction()
+   - Update UI with real predictions
+   - Handle banker toggle
+   - Implement lock/unlock
+
+2. Real-time Updates
+   - Add Supabase subscriptions
+   - Update UI when data changes
+   - Handle match result updates
+
+
+Day 5: Admin Panel
+------------------
+
+1. Connect Admin Functions
+   - Round creation → createRound()
+   - Match management → addMatch()
+   - MOTW toggle → setMatchOfTheWeek()
+   - Result entry → updateMatchResult()
+   - Finalize round → finalizeRound()
+
+
+=========================
+WEEK 3: Polish & Deploy
+=========================
+
+Day 1-2: Invitation System
+---------------------------
+
+1. Setup Email Service
+   Choose one:
+   - Resend (recommended, easiest)
+   - SendGrid
+   - AWS SES
+
+2. Implement Email Sending
+   // src/api/email.ts
+   export async function sendInvitationEmail(email: string, token: string) {
+     // Integration with chosen email service
+   }
+
+
+Day 3: Testing
+--------------
+
+Manual Testing Checklist:
+[ ] User can register via invitation
+[ ] User can login/logout
+[ ] User can view current round
+[ ] User can submit predictions
+[ ] User can set banker
+[ ] User can lock/unlock predictions
+[ ] Admin can create rounds
+[ ] Admin can add matches
+[ ] Admin can set MOTW
+[ ] Admin can enter results
+[ ] Points calculate correctly
+[ ] Leaderboard updates
+
+Test with Real Data:
+- Create test round with 3-4 matches
+- Have 2-3 test users make predictions
+- Enter results
+- Finalize round
+- Verify scoring and leaderboard
+
+
+Day 4-5: Deployment
+-------------------
+
+1. Deploy to Vercel
+   # Install Vercel CLI
+   npm i -g vercel
+   
+   # Deploy
+   vercel
+   
+   # Set environment variables in Vercel dashboard
+
+2. Configure Production
+   - Add production URL to Supabase auth settings
+   - Test with production URL
+   - Invite real users
+
+3. Monitor First Round
+   - Watch for errors
+   - Collect feedback
+   - Make adjustments
+
+
+=========================
+TESTING STRATEGY
+=========================
+
+Unit Testing (Optional):
+npm install vitest @testing-library/react
+
+
+Manual Testing Flow:
+
+PLAYER FLOW:
+1. Receive invitation email
+2. Click link, register
+3. View current round
+4. Submit predictions for all matches
+5. Select banker
+6. Lock predictions
+7. See other players' picks after locking
+8. View leaderboard
+
+ADMIN FLOW:
+1. Login as admin
+2. Create new round
+3. Add 8 matches
+4. Set deadline
+5. Select MOTW
+6. Publish round
+7. Enter results after matches
+8. Finalize round
+9. Verify leaderboard updated
+
+
+=========================
+TROUBLESHOOTING
+=========================
+
+Common Issues:
+
+Issue: RLS Policies blocking queries
+- Check Supabase logs
+- Verify user is authenticated
+- Review RLS policies
+
+Issue: Points not calculating
+- Check trigger is enabled
+- Verify match has result
+- Check predictions exist
+
+Issue: Banker not working
+- Only one banker per round per user
+- Check unique index constraint
+- Verify round_id matching
+
+Issue: Email not sending
+- Check API keys
+- Verify email service configuration
+- Check spam folder
+
+
+=========================
+PERFORMANCE OPTIMIZATION
+=========================
+
+Later (if needed):
+- Add database indexes for common queries
+- Implement caching for leaderboard
+- Optimize real-time subscriptions
+- Add pagination for history
+
+
+=========================
+SUPPORT
+=========================
+
+Documentation:
+- Supabase Docs: https://supabase.com/docs
+- React Docs: https://react.dev
+- TypeScript: https://www.typescriptlang.org/docs
+
+Need Help?
+Contact project owner with:
+- Error messages
+- Screenshots
+- Steps to reproduce
