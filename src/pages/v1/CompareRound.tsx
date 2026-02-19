@@ -6,7 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ChevronLeft, Star } from 'lucide-react';
-import { matches, currentRound, users, currentUser } from '@/mockData';
+import { useEffect } from 'react';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
 import { MatchResult } from '@/types';
 import LayoutV1 from './Layout';
 
@@ -14,34 +16,82 @@ export default function CompareRoundV1() {
   const [, params] = useRoute('/version1/compare/:status');
   const status = (params?.status as 'locked' | 'final') || 'locked';
   
-  // Select first non-current user as default comparison
-  const otherUsers = users.filter(u => u.id !== currentUser.id);
-  const [selectedUserId, setSelectedUserId] = useState(otherUsers[0]?.id || '');
-  
+
+  const { user: currentUser } = useAuth();
+  // If not authenticated, show a message or redirect
+  if (!currentUser) {
+    return (
+      <LayoutV1>
+        <div className="p-8 text-center text-slate-400">You must be logged in to compare predictions.</div>
+      </LayoutV1>
+    );
+  }
+  const [users, setUsers] = useState<any[]>([]);
+  const [matches, setMatches] = useState<any[]>([]);
+  const [predictions, setPredictions] = useState<any[]>([]);
+  const [currentRound, setCurrentRound] = useState<any | null>(null);
+  const [selectedUserId, setSelectedUserId] = useState('');
+  const [loading, setLoading] = useState(true);
+
   const isLocked = status === 'locked' || status === 'final';
   const isFinal = status === 'final';
-  const regularMatches = matches.filter(m => m.includeInRound);
 
-  // Mock results ONLY for final state
-  const matchesWithResults = regularMatches.map((match, idx) => ({
+  // Fetch users, round, matches, predictions
+  useEffect(() => {
+    const fetchAll = async () => {
+      setLoading(true);
+      // Users
+      const { data: userData } = await supabase.from('users').select('*');
+      setUsers(userData || []);
+      // Current round (latest open/active/final round)
+      const { data: roundData } = await supabase
+        .from('rounds')
+        .select('*')
+        .in('status', ['locked', 'final', 'scored'])
+        .order('deadline', { ascending: false })
+        .limit(1)
+        .single();
+      setCurrentRound(roundData);
+      if (!roundData) {
+        setMatches([]);
+        setPredictions([]);
+        setLoading(false);
+        return;
+      }
+      // Matches
+      const { data: matchData } = await supabase
+        .from('matches')
+        .select('*, home_team:home_team_id(*), away_team:away_team_id(*)')
+        .eq('round_id', roundData.id)
+        .order('kickoff', { ascending: true });
+      setMatches(matchData || []);
+      // Predictions
+      const { data: predictionData } = await supabase
+        .from('predictions')
+        .select('*')
+        .eq('round_id', roundData.id);
+      setPredictions(predictionData || []);
+      // Set default selected user
+      if (userData && currentUser) {
+        const others = userData.filter((u: any) => u.id !== currentUser.id);
+        setSelectedUserId(others[0]?.id || '');
+      }
+      setLoading(false);
+    };
+    fetchAll();
+  }, [currentUser]);
+
+  // Build predictions for comparison
+  const regularMatches = matches.filter((m: any) => m.include_in_round);
+  const myPredictions = predictions.find((p: any) => p.user_id === currentUser?.id);
+  const selectedUserPredictions = predictions.find((p: any) => p.user_id === selectedUserId);
+  const selectedUser = users.find((u: any) => u.id === selectedUserId);
+  const otherUsers = users.filter((u: any) => u.id !== currentUser?.id);
+  // For final, use match.result; otherwise null
+  const matchesWithResults = regularMatches.map((match: any) => ({
     ...match,
-    result: isFinal ? (['H', 'B', 'U', 'H', 'B', 'H', 'U', 'B'][idx] as MatchResult) : null,
+    result: isFinal ? match.result : null,
   }));
-
-  // Mock all players' predictions
-  const allPlayersPredictions = users.map((user, idx) => ({
-    userId: user.id,
-    userName: user.name,
-    picks: regularMatches.map((_, matchIdx) => {
-      const options: MatchResult[] = ['H', 'U', 'B'];
-      return options[(idx + matchIdx) % 3];
-    }),
-    conviction: idx % regularMatches.length,
-  }));
-
-  const myPredictions = allPlayersPredictions.find(p => p.userId === currentUser.id);
-  const selectedUserPredictions = allPlayersPredictions.find(p => p.userId === selectedUserId);
-  const selectedUser = users.find(u => u.id === selectedUserId);
 
   return (
     <LayoutV1>
@@ -53,7 +103,7 @@ export default function CompareRoundV1() {
           </Button>
         </Link>
         <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">Compare Predictions</h1>
-        <p className="text-slate-400 text-sm">Round {currentRound.number} - Side by side comparison</p>
+        <p className="text-slate-400 text-sm">Round {currentRound?.number} - Side by side comparison</p>
       </div>
 
       {/* Player Selector */}
@@ -75,27 +125,26 @@ export default function CompareRoundV1() {
 
       {/* Comparison Cards - Mobile */}
       <div className="sm:hidden space-y-3">
-        {matchesWithResults.map((match, idx) => {
-          const myPick = myPredictions?.picks[idx];
+        {matchesWithResults.map((match: any, idx: number) => {
+          const myPick = myPredictions?.picks ? myPredictions.picks[idx] : null;
           const myConviction = myPredictions?.conviction === idx;
-          const theirPick = selectedUserPredictions?.picks[idx];
+          const theirPick = selectedUserPredictions?.picks ? selectedUserPredictions.picks[idx] : null;
           const theirConviction = selectedUserPredictions?.conviction === idx;
           const myCorrect = isFinal && match.result && myPick === match.result;
           const theirCorrect = isFinal && match.result && theirPick === match.result;
-
           return (
             <Card key={match.id} className="bg-slate-900 border-slate-800 p-3">
-              <div key={match.id} className={`bg-slate-800/50 rounded-lg p-4 mb-4 ${match.isMatchOfTheWeek ? 'ring-2 ring-yellow-500/50' : ''}`}>
+              <div key={match.id} className={`bg-slate-800/50 rounded-lg p-4 mb-4 ${match.is_match_of_the_week ? 'ring-2 ring-yellow-500/50' : ''}`}>
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2 flex-1">
-                    {match.isMatchOfTheWeek && (
+                    {match.is_match_of_the_week && (
                       <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/40 flex items-center gap-1 text-xs font-bold mr-2 px-1.5 py-0.5">
                         <Star className="w-3 h-3 fill-current" />
                       </Badge>
                     )}
-                    <span className="text-white text-sm font-medium">{match.homeTeam.shortName}</span>
+                    <span className="text-white text-sm font-medium">{match.home_team?.short_name}</span>
                     <span className="text-slate-600 text-xs">vs</span>
-                    <span className="text-white text-sm font-medium">{match.awayTeam.shortName}</span>
+                    <span className="text-white text-sm font-medium">{match.away_team?.short_name}</span>
                   </div>
                   {isFinal && match.result && (
                     <div className="text-center">
@@ -175,27 +224,26 @@ export default function CompareRoundV1() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {matchesWithResults.map((match, idx) => {
-                const myPick = myPredictions?.picks[idx];
+              {matchesWithResults.map((match: any, idx: number) => {
+                const myPick = myPredictions?.picks ? myPredictions.picks[idx] : null;
                 const myConviction = myPredictions?.conviction === idx;
-                const theirPick = selectedUserPredictions?.picks[idx];
+                const theirPick = selectedUserPredictions?.picks ? selectedUserPredictions.picks[idx] : null;
                 const theirConviction = selectedUserPredictions?.conviction === idx;
                 const myCorrect = isFinal && match.result && myPick === match.result;
                 const theirCorrect = isFinal && match.result && theirPick === match.result;
-
                 return (
                   <TableRow key={match.id} className="border-slate-800 hover:bg-slate-800/50">
                     <TableCell>
-                      {match.isMatchOfTheWeek && (
+                      {match.is_match_of_the_week && (
                         <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/40 flex items-center gap-1 text-xs font-bold mb-2 w-fit px-2 py-0.5">
                           <Star className="w-3 h-3 fill-current" />
                           MOTW
                         </Badge>
                       )}
                       <div className="flex items-center gap-3">
-                        <span className="text-white text-sm">{match.homeTeam.name}</span>
+                        <span className="text-white text-sm">{match.home_team?.name}</span>
                         <span className="text-slate-600 text-xs">vs</span>
-                        <span className="text-white text-sm">{match.awayTeam.name}</span>
+                        <span className="text-white text-sm">{match.away_team?.name}</span>
                       </div>
                     </TableCell>
                     <TableCell>
