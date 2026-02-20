@@ -17,14 +17,34 @@ type RoundEntry = {
 export default function StatsV1() {
   const [loading, setLoading] = useState(true);
   const [entries, setEntries] = useState<RoundEntry[]>([]);
+  const [competitionTick, setCompetitionTick] = useState(0);
+
+  useEffect(() => {
+    const handleCompetitionChange = () => setCompetitionTick((prev) => prev + 1);
+    window.addEventListener('competition-changed', handleCompetitionChange);
+    return () => window.removeEventListener('competition-changed', handleCompetitionChange);
+  }, []);
 
   useEffect(() => {
     const fetchStats = async () => {
       setLoading(true);
 
+      const { data: activeCompetition } = await supabase
+        .from('competitions')
+        .select('id')
+        .eq('is_active', true)
+        .single();
+
+      if (!activeCompetition) {
+        setEntries([]);
+        setLoading(false);
+        return;
+      }
+
       const { data } = await supabase
         .from('round_stats')
-        .select('total_points,correct_predictions,banker_correct, round:round_id(round_number), user:user_id(name)');
+        .select('total_points,correct_predictions,banker_correct, round:round_id(round_number,competition_id), user:user_id(name)')
+        .eq('round.competition_id', activeCompetition.id);
 
       const mapped = (data || []).map((row: any) => {
         const round = Array.isArray(row.round) ? row.round[0] : row.round;
@@ -44,7 +64,7 @@ export default function StatsV1() {
     };
 
     fetchStats();
-  }, []);
+  }, [competitionTick]);
 
   const bestRounds = useMemo(() => {
     return [...entries]

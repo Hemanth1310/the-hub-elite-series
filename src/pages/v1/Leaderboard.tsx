@@ -23,41 +23,81 @@ export default function LeaderboardV1() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [competitionTick, setCompetitionTick] = useState(0);
+
+  useEffect(() => {
+    const handleCompetitionChange = () => setCompetitionTick((prev) => prev + 1);
+    window.addEventListener('competition-changed', handleCompetitionChange);
+    return () => window.removeEventListener('competition-changed', handleCompetitionChange);
+  }, []);
 
   useEffect(() => {
     const fetchLeaderboard = async () => {
       setLoading(true);
 
+      const { data: activeCompetition } = await supabase
+        .from('competitions')
+        .select('id')
+        .eq('is_active', true)
+        .single();
+
+      if (!activeCompetition) {
+        setLeaderboard([]);
+        setLoading(false);
+        return;
+      }
+
       const { data } = await supabase
-        .from('leaderboard')
-        .select('user_id,total_points,rounds_played,correct_predictions,banker_success,banker_fail,rounds_won,current_rank, user:user_id(name)')
-        .order('current_rank', { ascending: true });
+        .from('round_stats')
+        .select('user_id,total_points,correct_predictions,banker_correct,rank, round:round_id(competition_id), user:user_id(name)')
+        .eq('round.competition_id', activeCompetition.id);
 
-      const mapped = (data || []).map((entry: any) => {
-        const userData = Array.isArray(entry.user) ? entry.user[0] : entry.user;
-        const roundsPlayed = entry.rounds_played || 0;
-        const totalPoints = entry.total_points || 0;
+      const aggregated = new Map<string, LeaderboardEntry>();
 
-        return {
-          userId: entry.user_id,
+      (data || []).forEach((row: any) => {
+        const userData = Array.isArray(row.user) ? row.user[0] : row.user;
+        const entry = aggregated.get(row.user_id) || {
+          userId: row.user_id,
           userName: userData?.name || 'Player',
-          rank: entry.current_rank || 0,
-          totalPoints,
-          matchesPlayed: roundsPlayed,
-          avgPerRound: roundsPlayed > 0 ? totalPoints / roundsPlayed : 0,
-          roundWins: entry.rounds_won || 0,
-          totalCorrect: entry.correct_predictions || 0,
-          bankerCorrect: entry.banker_success || 0,
-          bankerWrong: entry.banker_fail || 0,
+          rank: 0,
+          totalPoints: 0,
+          matchesPlayed: 0,
+          avgPerRound: 0,
+          roundWins: 0,
+          totalCorrect: 0,
+          bankerCorrect: 0,
+          bankerWrong: 0,
         };
+
+        entry.totalPoints += row.total_points || 0;
+        entry.totalCorrect += row.correct_predictions || 0;
+        entry.matchesPlayed += 1;
+        if (row.rank === 1) {
+          entry.roundWins += 1;
+        }
+        if (row.banker_correct === true) {
+          entry.bankerCorrect += 1;
+        } else if (row.banker_correct === false) {
+          entry.bankerWrong += 1;
+        }
+
+        aggregated.set(row.user_id, entry);
       });
+
+      const mapped = Array.from(aggregated.values())
+        .map((entry) => ({
+          ...entry,
+          avgPerRound: entry.matchesPlayed > 0 ? entry.totalPoints / entry.matchesPlayed : 0,
+        }))
+        .sort((a, b) => b.totalPoints - a.totalPoints)
+        .map((entry, index) => ({ ...entry, rank: index + 1 }));
 
       setLeaderboard(mapped);
       setLoading(false);
     };
 
     fetchLeaderboard();
-  }, []);
+  }, [competitionTick]);
 
   const averageScore = leaderboard.length
     ? leaderboard.reduce((sum, e) => sum + e.avgPerRound, 0) / leaderboard.length

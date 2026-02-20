@@ -46,14 +46,39 @@ export default function CompareRoundHistoryV1() {
   const [users, setUsers] = useState<UserRow[]>([]);
   const [predictions, setPredictions] = useState<PredictionRow[]>([]);
   const [points, setPoints] = useState<PointsRow[]>([]);
+  const [competitionTick, setCompetitionTick] = useState(0);
+
+  useEffect(() => {
+    const handleCompetitionChange = () => setCompetitionTick((prev) => prev + 1);
+    window.addEventListener('competition-changed', handleCompetitionChange);
+    return () => window.removeEventListener('competition-changed', handleCompetitionChange);
+  }, []);
 
   useEffect(() => {
     const fetchRoundData = async () => {
       setLoading(true);
 
+      const { data: activeCompetition } = await supabase
+        .from('competitions')
+        .select('id')
+        .eq('is_active', true)
+        .single();
+
+      if (!activeCompetition) {
+        setRoundId(null);
+        setRoundType(null);
+        setMatches([]);
+        setUsers([]);
+        setPredictions([]);
+        setPoints([]);
+        setLoading(false);
+        return;
+      }
+
       const { data: round } = await supabase
         .from('rounds')
         .select('id,round_type')
+        .eq('competition_id', activeCompetition.id)
         .eq('round_number', roundNumber)
         .single();
 
@@ -132,7 +157,7 @@ export default function CompareRoundHistoryV1() {
     };
 
     fetchRoundData();
-  }, [roundNumber]);
+  }, [roundNumber, competitionTick]);
 
   useEffect(() => {
     if (!selectedUserId && users.length > 0) {

@@ -31,6 +31,26 @@ export default function LayoutV1({ children }: { children: React.ReactNode }) {
     fetchCompetitions();
   }, []);
 
+  const handleCompetitionChange = async (competitionId: string) => {
+    setSelectedCompetition(competitionId);
+
+    const { error: activateError } = await supabase
+      .from('competitions')
+      .update({ is_active: true })
+      .eq('id', competitionId);
+
+    if (activateError) {
+      return;
+    }
+
+    await supabase
+      .from('competitions')
+      .update({ is_active: false })
+      .neq('id', competitionId);
+
+    window.dispatchEvent(new Event('competition-changed'));
+  };
+
   return (
     <div className="min-h-screen bg-linear-to-br from-slate-950 via-slate-900 to-slate-950">
       {/* Header */}
@@ -51,7 +71,7 @@ export default function LayoutV1({ children }: { children: React.ReactNode }) {
 
             {/* Competition Selector - Hidden on small mobile */}
             <div className="hidden sm:block flex-1 max-w-50 md:max-w-60">
-              <Select value={selectedCompetition} onValueChange={setSelectedCompetition}>
+              <Select value={selectedCompetition} onValueChange={handleCompetitionChange}>
                 <SelectTrigger className="w-full bg-slate-800 border-slate-700 text-white text-sm">
                   <SelectValue />
                 </SelectTrigger>

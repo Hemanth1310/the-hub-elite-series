@@ -48,18 +48,41 @@ export default function CompareRoundV1() {
   const [users, setUsers] = useState<UserRow[]>([]);
   const [predictions, setPredictions] = useState<PredictionRow[]>([]);
   const [selectedUserId, setSelectedUserId] = useState('');
+  const [competitionTick, setCompetitionTick] = useState(0);
 
   const isLocked = status === 'locked' || status === 'final';
   const isFinal = status === 'final';
 
   useEffect(() => {
+    const handleCompetitionChange = () => setCompetitionTick((prev) => prev + 1);
+    window.addEventListener('competition-changed', handleCompetitionChange);
+    return () => window.removeEventListener('competition-changed', handleCompetitionChange);
+  }, []);
+
+  useEffect(() => {
     const fetchCompareData = async () => {
       setLoading(true);
+
+      const { data: activeCompetition } = await supabase
+        .from('competitions')
+        .select('id')
+        .eq('is_active', true)
+        .single();
+
+      if (!activeCompetition) {
+        setRound(null);
+        setMatches([]);
+        setUsers([]);
+        setPredictions([]);
+        setLoading(false);
+        return;
+      }
 
       const roundStatus = isFinal ? 'final' : 'published';
       const { data: roundRow } = await supabase
         .from('rounds')
         .select('id,round_number,round_type')
+        .eq('competition_id', activeCompetition.id)
         .eq('status', roundStatus)
         .order('round_number', { ascending: false })
         .limit(1)
@@ -127,7 +150,7 @@ export default function CompareRoundV1() {
     };
 
     fetchCompareData();
-  }, [isFinal]);
+  }, [isFinal, competitionTick]);
 
   useEffect(() => {
     const otherUsers = users.filter((item) => item.id !== user?.id);

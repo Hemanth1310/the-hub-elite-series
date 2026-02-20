@@ -51,14 +51,34 @@ export default function RoundsV1() {
     myPoints: number | null;
     totalPlayers: number;
   } | null>(null);
+  const [competitionTick, setCompetitionTick] = useState(0);
+
+  useEffect(() => {
+    const handleCompetitionChange = () => setCompetitionTick((prev) => prev + 1);
+    window.addEventListener('competition-changed', handleCompetitionChange);
+    return () => window.removeEventListener('competition-changed', handleCompetitionChange);
+  }, []);
 
   useEffect(() => {
     const fetchRounds = async () => {
       setLoading(true);
 
+      const { data: activeCompetition } = await supabase
+        .from('competitions')
+        .select('id')
+        .eq('is_active', true)
+        .single();
+
+      if (!activeCompetition) {
+        setRounds([]);
+        setLoading(false);
+        return;
+      }
+
       const { data: roundRows } = await supabase
         .from('rounds')
         .select('id,round_number,deadline,round_type')
+        .eq('competition_id', activeCompetition.id)
         .eq('status', 'final')
         .order('round_number', { ascending: false });
 
@@ -109,7 +129,7 @@ export default function RoundsV1() {
     };
 
     fetchRounds();
-  }, []);
+  }, [competitionTick]);
 
   useEffect(() => {
     const fetchRoundDetails = async () => {

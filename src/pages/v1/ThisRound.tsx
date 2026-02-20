@@ -36,6 +36,13 @@ export default function ThisRoundV1() {
   const [predictions, setPredictions] = useState<Record<string, MatchResult>>({});
   const [bankerMatchId, setBankerMatchId] = useState<string | null>(null);
   const [showHowToPredict, setShowHowToPredict] = useState(false);
+  const [competitionTick, setCompetitionTick] = useState(0);
+
+  useEffect(() => {
+    const handleCompetitionChange = () => setCompetitionTick((prev) => prev + 1);
+    window.addEventListener('competition-changed', handleCompetitionChange);
+    return () => window.removeEventListener('competition-changed', handleCompetitionChange);
+  }, []);
 
   useEffect(() => {
     const fetchRoundData = async () => {
@@ -46,9 +53,25 @@ export default function ThisRoundV1() {
 
       setLoading(true);
 
+      const { data: activeCompetition } = await supabase
+        .from('competitions')
+        .select('id')
+        .eq('is_active', true)
+        .single();
+
+      if (!activeCompetition) {
+        setRound(null);
+        setMatches([]);
+        setPredictions({});
+        setBankerMatchId(null);
+        setLoading(false);
+        return;
+      }
+
       const { data: activeRound, error: roundError } = await supabase
         .from('rounds')
         .select('id,round_number,round_type,deadline,status')
+        .eq('competition_id', activeCompetition.id)
         .eq('status', 'published')
         .order('round_number', { ascending: false })
         .limit(1)
@@ -132,7 +155,7 @@ export default function ThisRoundV1() {
     };
 
     fetchRoundData();
-  }, [user]);
+  }, [user, competitionTick]);
 
   const timeRemaining = round ? formatTimeRemainingCompact(new Date(round.deadline)) : '';
 

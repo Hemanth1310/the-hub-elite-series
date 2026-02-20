@@ -23,6 +23,13 @@ export default function AdminV1() {
   const [competitionName, setCompetitionName] = useState('');
   const [isActive, setIsActive] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [competitionTick, setCompetitionTick] = useState(0);
+
+  useEffect(() => {
+    const handleCompetitionChange = () => setCompetitionTick((prev) => prev + 1);
+    window.addEventListener('competition-changed', handleCompetitionChange);
+    return () => window.removeEventListener('competition-changed', handleCompetitionChange);
+  }, []);
 
   useEffect(() => {
     const fetchCompetitions = async () => {
@@ -40,7 +47,7 @@ export default function AdminV1() {
     };
 
     fetchCompetitions();
-  }, []);
+  }, [competitionTick]);
 
   useEffect(() => {
     const fetchRounds = async () => {
@@ -91,7 +98,7 @@ export default function AdminV1() {
     };
 
     fetchRounds();
-  }, [selectedCompetition]);
+  }, [selectedCompetition, competitionTick]);
 
   const getStatusColor = (status: string) => {
     switch (status) {

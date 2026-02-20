@@ -22,10 +22,17 @@ export default function DashboardV1() {
   const [lastRoundPoints, setLastRoundPoints] = useState<number | null>(null);
   const [lastRoundPositionChange, setLastRoundPositionChange] = useState<number | null>(null);
   const [lastRoundBankerSuccess, setLastRoundBankerSuccess] = useState<boolean | null>(null);
+  const [competitionTick, setCompetitionTick] = useState(0);
 
   const [totalPoints, setTotalPoints] = useState(0);
   const [predictionAccuracy, setPredictionAccuracy] = useState(0);
   const [bankerSuccessRate, setBankerSuccessRate] = useState(0);
+
+  useEffect(() => {
+    const handleCompetitionChange = () => setCompetitionTick((prev) => prev + 1);
+    window.addEventListener('competition-changed', handleCompetitionChange);
+    return () => window.removeEventListener('competition-changed', handleCompetitionChange);
+  }, []);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -36,9 +43,21 @@ export default function DashboardV1() {
 
       setLoading(true);
 
+      const { data: activeCompetition } = await supabase
+        .from('competitions')
+        .select('id')
+        .eq('is_active', true)
+        .single();
+
+      if (!activeCompetition) {
+        setLoading(false);
+        return;
+      }
+
       const { data: roundRow } = await supabase
         .from('rounds')
         .select('id,round_number,deadline,status')
+        .eq('competition_id', activeCompetition.id)
         .eq('status', 'published')
         .order('round_number', { ascending: false })
         .limit(1)
@@ -72,6 +91,7 @@ export default function DashboardV1() {
         const { data: finalRound } = await supabase
           .from('rounds')
           .select('round_number')
+          .eq('competition_id', activeCompetition.id)
           .eq('status', 'final')
           .order('round_number', { ascending: false })
           .limit(1)
@@ -100,6 +120,7 @@ export default function DashboardV1() {
       const { data: lastRound } = await supabase
         .from('rounds')
         .select('id')
+        .eq('competition_id', activeCompetition.id)
         .eq('status', 'final')
         .order('round_number', { ascending: false })
         .limit(1)
@@ -121,7 +142,7 @@ export default function DashboardV1() {
     };
 
     fetchDashboardData();
-  }, [user]);
+  }, [user, competitionTick]);
 
   const getActionButton = () => {
     if (roundStatus === 'open') {
