@@ -228,7 +228,7 @@ export default function ThisRoundV1() {
       </div>
 
       {/* DEMO Controls */}
-      <Card className="bg-yellow-500/10 border-yellow-500/30 p-4 mb-6">
+      {/* <Card className="bg-yellow-500/10 border-yellow-500/30 p-4 mb-6">
         <div className="flex flex-col gap-3">
           <div className="text-yellow-400 font-semibold text-sm">🎭 PROTOTYPE TESTING CONTROLS</div>
           <div className="flex flex-wrap gap-2">
@@ -240,7 +240,7 @@ export default function ThisRoundV1() {
             <Button size="sm" onClick={() => setRoundType('postponed')} className={roundType === 'postponed' ? 'bg-purple-600' : 'bg-slate-800 border-slate-700 text-slate-300'}>Postponed Set</Button>
           </div>
         </div>
-      </Card>
+      </Card> */}
 
       {/* My Predictions */}
       <Card className="bg-slate-900 border-slate-800 mb-6">
