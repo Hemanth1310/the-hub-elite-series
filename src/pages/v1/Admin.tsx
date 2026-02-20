@@ -17,7 +17,7 @@ export default function AdminV1() {
   const [competitions, setCompetitions] = useState<any[]>([]);
   const [selectedCompetition, setSelectedCompetition] = useState('');
   const [rounds, setRounds] = useState<any[]>([]);
-  const [postponedGames, setPostponedGames] = useState<any[]>([]);
+  const [postponedSets, setPostponedSets] = useState<any[]>([]);
   const [viewMode, setViewMode] = useState<'rounds' | 'postponed'>('rounds');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [competitionName, setCompetitionName] = useState('');
@@ -46,7 +46,7 @@ export default function AdminV1() {
     const fetchRounds = async () => {
       if (!selectedCompetition) {
         setRounds([]);
-        setPostponedGames([]);
+        setPostponedSets([]);
         setLoading(false);
         return;
       }
@@ -55,7 +55,7 @@ export default function AdminV1() {
 
       const { data: roundRows } = await supabase
         .from('rounds')
-        .select('id,round_number,deadline,status')
+        .select('id,round_number,deadline,status,round_type')
         .eq('competition_id', selectedCompetition)
         .order('round_number', { ascending: false });
 
@@ -80,34 +80,13 @@ export default function AdminV1() {
             firstMatchDate: firstMatch?.kickoff ? new Date(firstMatch.kickoff).toLocaleDateString() : '—',
             gamesCount: count || 0,
             status: round.status === 'published' ? 'active' : round.status,
+            roundType: round.round_type,
           };
         })
       );
 
-      setRounds(roundsWithStats);
-
-      const { data: postponedRows } = await supabase
-        .from('matches')
-        .select('id,kickoff,status,home_team:home_team_id(short_name),away_team:away_team_id(short_name),round:round_id(round_number)')
-        .eq('status', 'postponed')
-        .order('kickoff', { ascending: false });
-
-      const postponedList = (postponedRows || []).map((match) => {
-        const homeTeam = Array.isArray(match.home_team) ? match.home_team[0] : match.home_team;
-        const awayTeam = Array.isArray(match.away_team) ? match.away_team[0] : match.away_team;
-        const round = Array.isArray(match.round) ? match.round[0] : match.round;
-
-        return {
-          id: match.id,
-          originalRound: round?.round_number || '—',
-          matchDate: match.kickoff ? new Date(match.kickoff).toLocaleDateString() : '—',
-          homeTeam: homeTeam?.short_name || '—',
-          awayTeam: awayTeam?.short_name || '—',
-          status: match.status || 'scheduled',
-        };
-      });
-
-      setPostponedGames(postponedList);
+      setRounds(roundsWithStats.filter((round) => round.roundType !== 'standalone'));
+      setPostponedSets(roundsWithStats.filter((round) => round.roundType === 'standalone'));
       setLoading(false);
     };
 
@@ -193,9 +172,9 @@ export default function AdminV1() {
         >
           <div className="text-left">
             <h3 className={`text-lg font-bold mb-1 ${viewMode === 'postponed' ? 'text-blue-400' : 'text-white'}`}>
-              Postponed Games
+              Postponed Sets
             </h3>
-            <p className="text-slate-400 text-sm">Standalone rescheduled matches</p>
+            <p className="text-slate-400 text-sm">Mini-rounds for rescheduled matches</p>
             <div className={`absolute top-4 right-4 w-3 h-3 rounded-full ${viewMode === 'postponed' ? 'bg-blue-500' : 'bg-transparent'}`} />
           </div>
         </button>
@@ -249,43 +228,41 @@ export default function AdminV1() {
         </div>
       )}
 
-      {/* Postponed Games Table */}
+      {/* Postponed Sets Table */}
       {viewMode === 'postponed' && (
         <div className="bg-slate-900 border border-slate-800 rounded-lg overflow-hidden">
           <div className="p-6 border-b border-slate-800 flex items-center justify-between">
-            <h2 className="text-xl font-bold text-white">Postponed Games</h2>
+            <h2 className="text-xl font-bold text-white">Postponed Sets</h2>
             <Link href="/version1/admin/postponed/new">
               <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
                 <Plus className="w-4 h-4 mr-2" />
-                Add Postponed Game
+                Add Postponed Set
               </Button>
             </Link>
           </div>
           <Table>
             <TableHeader>
               <TableRow className="border-slate-800 hover:bg-transparent">
-                <TableHead className="text-slate-400 font-semibold">Original Round</TableHead>
-                <TableHead className="text-slate-400 font-semibold">Match Date</TableHead>
-                <TableHead className="text-slate-400 font-semibold">Teams</TableHead>
+                <TableHead className="text-slate-400 font-semibold">Set</TableHead>
+                <TableHead className="text-slate-400 font-semibold">First Match Date</TableHead>
+                <TableHead className="text-slate-400 font-semibold text-center">Games</TableHead>
                 <TableHead className="text-slate-400 font-semibold">Status</TableHead>
                 <TableHead className="text-slate-400 font-semibold text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {postponedGames.map(game => (
-                <TableRow key={game.id} className="border-slate-800 hover:bg-slate-800/50">
-                  <TableCell className="text-slate-300">Round {game.originalRound}</TableCell>
-                  <TableCell className="text-slate-300">{game.matchDate}</TableCell>
-                  <TableCell className="font-medium text-white">
-                    {game.homeTeam} - {game.awayTeam}
-                  </TableCell>
+              {postponedSets.map((set) => (
+                <TableRow key={set.number} className="border-slate-800 hover:bg-slate-800/50">
+                  <TableCell className="font-medium text-white">Round {set.number} (Postponed Set)</TableCell>
+                  <TableCell className="text-slate-300">{set.firstMatchDate}</TableCell>
+                  <TableCell className="text-center text-slate-300">{set.gamesCount}</TableCell>
                   <TableCell>
-                    <Badge className={getStatusColor(game.status)}>
-                      {game.status.toUpperCase()}
+                    <Badge className={getStatusColor(set.status)}>
+                      {set.status.toUpperCase()}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
-                    <Link href={`/version1/admin/postponed/${game.id}`}>
+                    <Link href={`/version1/admin/postponed/${set.number}`}>
                       <Button size="sm" variant="ghost" className="text-blue-400 hover:text-blue-300 hover:bg-blue-500/10">
                         <Pencil className="w-4 h-4 mr-2" />
                         Edit

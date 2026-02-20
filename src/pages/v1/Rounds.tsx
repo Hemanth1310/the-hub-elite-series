@@ -16,6 +16,7 @@ type RoundSummary = {
   winner: string;
   averageScore: number;
   totalPlayers: number;
+  roundType: 'regular' | 'standalone';
 };
 
 type MatchDetail = {
@@ -57,7 +58,7 @@ export default function RoundsV1() {
 
       const { data: roundRows } = await supabase
         .from('rounds')
-        .select('id,round_number,deadline')
+        .select('id,round_number,deadline,round_type')
         .eq('status', 'final')
         .order('round_number', { ascending: false });
 
@@ -99,6 +100,7 @@ export default function RoundsV1() {
           winner: stats?.winner || '—',
           averageScore,
           totalPlayers: stats?.count || 0,
+          roundType: round.round_type,
         };
       });
 
@@ -193,6 +195,7 @@ export default function RoundsV1() {
 
   if (selectedRoundId && selectedRoundNumber) {
     const roundInfo = rounds.find(r => r.roundNumber === selectedRoundNumber);
+    const isPostponed = roundInfo?.roundType === 'standalone';
     const myPredictions = predictions.filter(p => p.userId === user?.id);
     const myPredictionMap = myPredictions.reduce<Record<string, string>>(
       (acc, row) => ({ ...acc, [row.matchId]: row.prediction }),
@@ -217,7 +220,9 @@ export default function RoundsV1() {
           </Button>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-2">
             <div className="flex items-center gap-4">
-              <h1 className="text-2xl sm:text-3xl font-bold text-white">Round {selectedRoundNumber}</h1>
+              <h1 className="text-2xl sm:text-3xl font-bold text-white">
+                {isPostponed ? `Postponed Set ${selectedRoundNumber}` : `Round ${selectedRoundNumber}`}
+              </h1>
               <Badge className="bg-slate-700 text-slate-300">FINAL</Badge>
             </div>
             <Link href={`/version1/rounds/${selectedRoundNumber}/compare`}>
@@ -253,10 +258,10 @@ export default function RoundsV1() {
               const isCorrect = myPick === match.result;
               
               return (
-                <div key={match.id} className={`bg-slate-800/50 rounded-lg p-4 space-y-2 ${match.isMatchOfTheWeek ? 'ring-2 ring-yellow-500/50' : ''}`}>
+                <div key={match.id} className={`bg-slate-800/50 rounded-lg p-4 space-y-2 ${!isPostponed && match.isMatchOfTheWeek ? 'ring-2 ring-yellow-500/50' : ''}`}>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 flex-1">
-                      {match.isMatchOfTheWeek && (
+                      {!isPostponed && match.isMatchOfTheWeek && (
                         <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/40 flex items-center gap-1 text-xs font-bold mr-2 px-1.5 py-0.5">
                           <Star className="w-3 h-3 fill-current" />
                         </Badge>
@@ -278,7 +283,7 @@ export default function RoundsV1() {
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-slate-400">My Pick:</span>
                     <div className="flex items-center gap-2">
-                      {isConviction && <Star className="w-3 h-3 text-blue-400 fill-current" />}
+                      {!isPostponed && isConviction && <Star className="w-3 h-3 text-blue-400 fill-current" />}
                       <span className={`font-semibold ${isCorrect ? 'text-green-400' : 'text-red-400'}`}>
                         {myPick || '—'}
                       </span>
@@ -301,7 +306,9 @@ export default function RoundsV1() {
                   <TableHead className="text-slate-400 font-semibold min-w-50">Match</TableHead>
                   <TableHead className="text-slate-400 font-semibold text-center w-16">Result</TableHead>
                   <TableHead className="text-slate-400 font-semibold text-center w-20">My Pick</TableHead>
-                  <TableHead className="text-slate-400 font-semibold text-center w-20">Conviction</TableHead>
+                  {!isPostponed && (
+                    <TableHead className="text-slate-400 font-semibold text-center w-20">Conviction</TableHead>
+                  )}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -313,7 +320,7 @@ export default function RoundsV1() {
                   return (
                     <TableRow key={match.id} className="border-slate-800 hover:bg-slate-800/50">
                       <TableCell>
-                        {match.isMatchOfTheWeek && (
+                        {!isPostponed && match.isMatchOfTheWeek && (
                           <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/40 flex items-center gap-1 text-xs font-bold mb-2 w-fit px-2 py-0.5">
                             <Star className="w-3 h-3 fill-current" />
                             MOTW
@@ -341,14 +348,16 @@ export default function RoundsV1() {
                           {myPick || '—'}
                         </span>
                       </TableCell>
-                      <TableCell className="text-center">
-                        {isConviction && <Star className="w-3 h-3 text-blue-400 fill-current" />}
-                      </TableCell>
+                      {!isPostponed && (
+                        <TableCell className="text-center">
+                          {isConviction && <Star className="w-3 h-3 text-blue-400 fill-current" />}
+                        </TableCell>
+                      )}
                     </TableRow>
                   );
                 })}
                 <TableRow className="border-slate-800 bg-slate-800/50">
-                  <TableCell className="font-bold text-white" colSpan={3}>My Round Points</TableCell>
+                  <TableCell className="font-bold text-white" colSpan={isPostponed ? 2 : 3}>My Round Points</TableCell>
                   <TableCell className="text-center">
                     <span className="font-bold text-lg text-blue-400">
                       {roundStats?.myPoints ?? '—'}
@@ -427,7 +436,9 @@ export default function RoundsV1() {
                   <span className="text-blue-400 font-bold text-lg">{round.roundNumber}</span>
                 </div>
                 <div className="flex-1">
-                  <div className="text-white font-semibold mb-1">Round {round.roundNumber}</div>
+                  <div className="text-white font-semibold mb-1">
+                    {round.roundType === 'standalone' ? `Postponed Set ${round.roundNumber}` : `Round ${round.roundNumber}`}
+                  </div>
                   <div className="flex items-center gap-2 text-sm text-slate-400">
                     <Calendar className="w-4 h-4" />
                     {round.date}

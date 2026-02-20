@@ -25,13 +25,13 @@ export default function ThisRoundV1() {
   const [round, setRound] = useState<{
     id: string;
     number: number;
-    roundType: 'round' | 'standalone';
+    roundType: 'round' | 'postponed';
     deadline: string;
     status: 'scheduled' | 'published' | 'final';
   } | null>(null);
   const [matches, setMatches] = useState<any[]>([]);
   const [roundStatus, setRoundStatus] = useState<'open' | 'locked' | 'final'>('open');
-  const [roundType, setRoundType] = useState<'round' | 'standalone'>('round');
+  const [roundType, setRoundType] = useState<'round' | 'postponed'>('round');
   const [isSaved, setIsSaved] = useState(false);
   const [predictions, setPredictions] = useState<Record<string, MatchResult>>({});
   const [bankerMatchId, setBankerMatchId] = useState<string | null>(null);
@@ -63,7 +63,7 @@ export default function ThisRoundV1() {
         return;
       }
 
-      const roundTypeValue = activeRound.round_type === 'standalone' ? 'standalone' : 'round';
+      const roundTypeValue = activeRound.round_type === 'standalone' ? 'postponed' : 'round';
       const roundStatusValue: 'open' | 'locked' | 'final' =
         activeRound.status === 'final'
           ? 'final'
@@ -146,7 +146,7 @@ export default function ThisRoundV1() {
   };
 
   const handleBankerToggle = (matchId: string) => {
-    if (roundType === 'standalone') return;
+    if (roundType !== 'round') return;
     setBankerMatchId(prev => prev === matchId ? null : matchId);
     setIsSaved(false); // Mark as unsaved when changed
   };
@@ -154,10 +154,7 @@ export default function ThisRoundV1() {
   const canEdit = roundStatus === 'open';
   const showResults = roundStatus === 'final';
   
-  // For standalone, show only first match; for rounds, show all
-  const displayMatches = roundType === 'standalone' 
-    ? matches.filter(m => m.includeInRound).slice(0, 1)
-    : matches.filter(m => m.includeInRound);
+  const displayMatches = matches.filter(m => m.includeInRound);
 
   if (loading) {
     return (
@@ -176,8 +173,8 @@ export default function ThisRoundV1() {
     return (
       <LayoutV1>
         <Card className="bg-slate-900 border-slate-800 p-6">
-          <div className="text-white text-lg font-semibold mb-2">No active round</div>
-          <div className="text-slate-400">Publish a round to start predictions.</div>
+          <div className="text-white text-lg font-semibold mb-2">No active predictions</div>
+          <div className="text-slate-400">Publish a round or postponed set to start predictions.</div>
         </Card>
       </LayoutV1>
     );
@@ -189,7 +186,9 @@ export default function ThisRoundV1() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
         <div>
           <div className="flex items-center gap-3 mb-2">
-            <h1 className="text-2xl sm:text-3xl font-bold text-white">Round {round.number}</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold text-white">
+              {round.roundType === 'postponed' ? `Postponed Set ${round.number}` : `Round ${round.number}`}
+            </h1>
             <Badge className={roundStatus === 'open' ? 'bg-green-500/20 text-green-400 border-green-500/30' : roundStatus === 'locked' ? 'bg-orange-500/20 text-orange-400 border-orange-500/30' : 'bg-green-500/20 text-green-400 border-green-500/30'}>
               {roundStatus.toUpperCase()}
             </Badge>
@@ -215,7 +214,7 @@ export default function ThisRoundV1() {
             <Button size="sm" onClick={() => setRoundStatus('final')} className={roundStatus === 'final' ? 'bg-blue-600' : 'bg-slate-800 border-slate-700 text-slate-300'}>Final</Button>
             <div className="h-6 w-px bg-slate-700" />
             <Button size="sm" onClick={() => setRoundType('round')} className={roundType === 'round' ? 'bg-purple-600' : 'bg-slate-800 border-slate-700 text-slate-300'}>Round</Button>
-            <Button size="sm" onClick={() => setRoundType('standalone')} className={roundType === 'standalone' ? 'bg-purple-600' : 'bg-slate-800 border-slate-700 text-slate-300'}>Standalone</Button>
+            <Button size="sm" onClick={() => setRoundType('postponed')} className={roundType === 'postponed' ? 'bg-purple-600' : 'bg-slate-800 border-slate-700 text-slate-300'}>Postponed Set</Button>
           </div>
         </div>
       </Card>
@@ -247,7 +246,7 @@ export default function ThisRoundV1() {
                 <div className="flex-1">
                   <div className="text-green-400 font-semibold mb-1">Predictions Saved & Ready!</div>
                   <div className="text-green-300/80 text-sm">
-                    All {displayMatches.length} prediction{displayMatches.length !== 1 ? 's' : ''} complete and saved. You can still edit until {roundType === 'standalone' ? 'the match locks' : 'the round locks'}.
+                    All {displayMatches.length} prediction{displayMatches.length !== 1 ? 's' : ''} complete and saved. You can still edit until {roundType === 'postponed' ? 'the set locks' : 'the round locks'}.
                   </div>
                 </div>
               </div>
@@ -293,17 +292,15 @@ export default function ThisRoundV1() {
             // Banker + MOTW: 12 or -6
             let points: number | null = null;
             if (showResults) {
-              if (isBanker && isMOTW) {
-                // Both banker and MOTW
+              if (roundType === 'postponed') {
+                points = isCorrect ? 3 : 0;
+              } else if (isBanker && isMOTW) {
                 points = isCorrect ? 12 : -6;
               } else if (isBanker) {
-                // Banker only
                 points = isCorrect ? 6 : -3;
               } else if (isMOTW) {
-                // MOTW only
                 points = isCorrect ? 6 : 0;
               } else {
-                // Regular match
                 points = isCorrect ? 3 : 0;
               }
             }
@@ -313,7 +310,7 @@ export default function ThisRoundV1() {
                 {/* Match Name and Date */}
                 <div className="flex items-center gap-2 mb-2">
                   <div className="text-white text-sm font-medium">{match.homeTeam.name} vs {match.awayTeam.name}</div>
-                  {roundType !== 'standalone' && match.isMatchOfTheWeek && (
+                  {roundType === 'round' && match.isMatchOfTheWeek && (
                     <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/40 flex items-center gap-1 text-xs font-bold px-2 py-0.5">
                       <Star className="w-3 h-3 fill-current" />
                       MOTW
@@ -446,6 +443,12 @@ export default function ThisRoundV1() {
                   <li>✓ Correct banker = <span className="text-green-400 font-semibold">6 points</span> (double!)</li>
                   <li>✗ Wrong banker = <span className="text-red-400 font-semibold">-3 points</span> (penalty)</li>
                 </ul>
+              </div>
+            )}
+            {roundType === 'postponed' && (
+              <div>
+                <h3 className="font-semibold text-white mb-2">Postponed Set Scoring</h3>
+                <p className="text-sm">Simple scoring only: 3 points for correct, 0 for wrong.</p>
               </div>
             )}
           </div>

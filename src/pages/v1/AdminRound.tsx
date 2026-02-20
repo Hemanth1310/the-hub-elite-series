@@ -39,7 +39,7 @@ export default function AdminRoundV1() {
   const [, postponedParams] = useRoute('/version1/admin/postponed/:id');
   const [, setLocation] = useLocation();
   
-  // Determine if this is a postponed game or regular round
+  // Determine if this is a postponed set or regular round
   const isPostponed = !!postponedParams;
   const roundNumber = params?.roundNumber || postponedParams?.id || 'new';
   const isNew = roundNumber === 'new';
@@ -56,6 +56,7 @@ export default function AdminRoundV1() {
   const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; matchId: string | null }>({ open: false, matchId: null });
   const [postponeDialog, setPostponeDialog] = useState<{ open: boolean; matchId: string | null }>({ open: false, matchId: null });
   const [publishWarning, setPublishWarning] = useState(false);
+  const [activeConflict, setActiveConflict] = useState<{ number: number; type: 'round' | 'postponed' } | null>(null);
   const [setFinalError, setSetFinalError] = useState('');
   
   const [matches, setMatches] = useState<any[]>([]);
@@ -94,7 +95,7 @@ export default function AdminRoundV1() {
         setDeadline(toInputDateTime(new Date().toISOString()));
       }
 
-      if (isNew && !isPostponed && competition?.id && !roundNumberInput) {
+      if (isNew && competition?.id && !roundNumberInput) {
         const { data: latestRound } = await supabase
           .from('rounds')
           .select('round_number')
@@ -108,18 +109,31 @@ export default function AdminRoundV1() {
       }
 
       if (isPostponed) {
-        if (!isNew) {
-          const { data: match } = await supabase
-            .from('matches')
-            .select('id,home_team_id,away_team_id,kickoff,include_in_round,result,is_match_of_the_week,status,home_team:home_team_id(name,short_name),away_team:away_team_id(name,short_name)')
-            .eq('id', roundNumber)
+        if (!isNew && competition?.id) {
+          const { data: postponedRound } = await supabase
+            .from('rounds')
+            .select('id,deadline,status,round_number')
+            .eq('competition_id', competition.id)
+            .eq('round_type', 'standalone')
+            .eq('round_number', roundNumber)
             .single();
 
-          if (match) {
-            const homeTeamData = Array.isArray(match.home_team) ? match.home_team[0] : match.home_team;
-            const awayTeamData = Array.isArray(match.away_team) ? match.away_team[0] : match.away_team;
-            setMatches([
-              {
+          if (postponedRound) {
+            setRoundId(postponedRound.id);
+            setRoundNumberInput(postponedRound.round_number.toString());
+            setDeadline(toInputDateTime(postponedRound.deadline));
+            setStatus(postponedRound.status === 'published' ? 'active' : postponedRound.status);
+
+            const { data: postponedMatches } = await supabase
+              .from('matches')
+              .select('id,home_team_id,away_team_id,kickoff,include_in_round,result,is_match_of_the_week,home_team:home_team_id(name,short_name),away_team:away_team_id(name,short_name)')
+              .eq('round_id', postponedRound.id)
+              .order('kickoff', { ascending: true });
+
+            const mapped = (postponedMatches || []).map((match) => {
+              const homeTeamData = Array.isArray(match.home_team) ? match.home_team[0] : match.home_team;
+              const awayTeamData = Array.isArray(match.away_team) ? match.away_team[0] : match.away_team;
+              return {
                 id: match.id,
                 homeTeamId: match.home_team_id,
                 awayTeamId: match.away_team_id,
@@ -131,14 +145,37 @@ export default function AdminRoundV1() {
                 includeInRound: match.include_in_round,
                 result: match.result,
                 isMatchOfTheWeek: match.is_match_of_the_week,
-              },
-            ]);
-            setMatchOfTheWeek(match.is_match_of_the_week ? match.id : null);
-            setDeadline(toInputDateTime(match.kickoff));
-            setStatus(match.status === 'finished' ? 'final' : match.status === 'live' ? 'active' : 'scheduled');
+              };
+            });
+
+            setMatches(mapped);
+            setMatchOfTheWeek(null);
           }
         }
 
+        const { data: poolRows } = await supabase
+          .from('matches')
+          .select('id,home_team_id,away_team_id,kickoff,home_team:home_team_id(name,short_name),away_team:away_team_id(name,short_name)')
+          .is('round_id', null)
+          .eq('status', 'postponed')
+          .order('kickoff', { ascending: true });
+
+        const pool = (poolRows || []).map((match) => {
+          const homeTeamData = Array.isArray(match.home_team) ? match.home_team[0] : match.home_team;
+          const awayTeamData = Array.isArray(match.away_team) ? match.away_team[0] : match.away_team;
+          return {
+            id: match.id,
+            homeTeamId: match.home_team_id,
+            awayTeamId: match.away_team_id,
+            homeTeam: homeTeamData?.name || '',
+            homeShort: homeTeamData?.short_name || '',
+            awayTeam: awayTeamData?.name || '',
+            awayShort: awayTeamData?.short_name || '',
+            kickoff: toInputDateTime(match.kickoff),
+          };
+        });
+
+        setPostponedMatches(pool);
         setLoading(false);
         return;
       }
@@ -202,6 +239,7 @@ export default function AdminRoundV1() {
           status: 'postponed',
           include_in_round: false,
           round_id: null,
+          is_match_of_the_week: false,
         })
         .eq('id', matchId);
 
@@ -210,10 +248,13 @@ export default function AdminRoundV1() {
         return;
       }
 
+      if (matchOfTheWeek === matchId) {
+        setMatchOfTheWeek(null);
+      }
       setPostponedMatches([...postponedMatches, { ...match, originalRound: roundNumber, includeInRound: false }]);
       setMatches(matches.filter(m => m.id !== matchId));
       setPostponeDialog({ open: false, matchId: null });
-      toast.success(`Match moved to postponed games (from Round ${roundNumber})`);
+      toast.success(`Match moved to postponed pool (from Round ${roundNumber})`);
     }
   };
 
@@ -233,8 +274,8 @@ export default function AdminRoundV1() {
       toast.error('Please select both teams');
       return;
     }
-    if (!isPostponed && !roundId) {
-      toast.error('Please save the round first');
+    if (!roundId) {
+      toast.error('Please save before adding matches');
       return;
     }
 
@@ -248,8 +289,8 @@ export default function AdminRoundV1() {
           away_team_id: away.id,
           kickoff: new Date(deadline).toISOString(),
           include_in_round: true,
-          round_id: isPostponed ? null : roundId,
-          status: isPostponed ? 'postponed' : 'scheduled',
+          round_id: roundId,
+          status: isPostponed ? 'scheduled' : 'scheduled',
           is_match_of_the_week: false,
         })
         .select('id,home_team_id,away_team_id,kickoff,include_in_round,result,is_match_of_the_week')
@@ -282,28 +323,94 @@ export default function AdminRoundV1() {
     }
   };
 
+  const handleAttachPostponedMatch = async (matchId: string) => {
+    if (!roundId) {
+      toast.error('Please save the postponed set first');
+      return;
+    }
+
+    const match = postponedMatches.find((item) => item.id === matchId);
+    if (!match) {
+      return;
+    }
+
+    const { error } = await supabase
+      .from('matches')
+      .update({
+        round_id: roundId,
+        include_in_round: true,
+        status: 'scheduled',
+        is_match_of_the_week: false,
+      })
+      .eq('id', matchId);
+
+    if (error) {
+      toast.error('Failed to attach postponed match');
+      return;
+    }
+
+    setMatches([
+      ...matches,
+      {
+        id: match.id,
+        homeTeamId: match.homeTeamId,
+        awayTeamId: match.awayTeamId,
+        homeTeam: match.homeTeam,
+        homeShort: match.homeShort,
+        awayTeam: match.awayTeam,
+        awayShort: match.awayShort,
+        kickoff: match.kickoff,
+        includeInRound: true,
+        result: null,
+        isMatchOfTheWeek: false,
+      },
+    ]);
+    setPostponedMatches(postponedMatches.filter((item) => item.id !== matchId));
+    toast.success('Postponed match added to set');
+  };
+
   const handleMatchUpdate = (matchId: string, field: string, value: any) => {
     setMatches(matches.map(m => m.id === matchId ? { ...m, [field]: value } : m));
   };
 
   const handlePublish = async () => {
-    if (isNew && !isPostponed && !roundNumberInput.trim()) {
+    if (isNew && !roundNumberInput.trim()) {
       toast.error('Please enter a round number');
       return;
     }
 
-    if (!roundId && !isPostponed) {
-      if (!competitionId) {
-        toast.error('No active competition found');
-        return;
-      }
+    if (!competitionId) {
+      toast.error('No active competition found');
+      return;
+    }
 
+    const activeQuery = supabase
+      .from('rounds')
+      .select('id,round_number,round_type')
+      .eq('competition_id', competitionId)
+      .eq('status', 'published');
+
+    const { data: activeRounds } = roundId
+      ? await activeQuery.neq('id', roundId).limit(1)
+      : await activeQuery.limit(1);
+
+    if (activeRounds && activeRounds.length > 0) {
+      const active = activeRounds[0];
+      setPublishWarning(true);
+      setActiveConflict({
+        number: active.round_number,
+        type: active.round_type === 'standalone' ? 'postponed' : 'round',
+      });
+      return;
+    }
+
+    if (!roundId) {
       const { data: created, error } = await supabase
         .from('rounds')
         .insert({
           competition_id: competitionId,
           round_number: parseInt(roundNumberInput, 10),
-          round_type: 'regular',
+          round_type: isPostponed ? 'standalone' : 'regular',
           deadline: new Date(deadline).toISOString(),
           status: 'published',
         })
@@ -316,7 +423,7 @@ export default function AdminRoundV1() {
       }
 
       setRoundId(created.id);
-    } else if (roundId) {
+    } else {
       const { error } = await supabase
         .from('rounds')
         .update({ status: 'published' })
@@ -329,7 +436,7 @@ export default function AdminRoundV1() {
     }
 
     setStatus('active');
-    toast.success('Round published and active for players');
+    toast.success(isPostponed ? 'Postponed set published and active for players' : 'Round published and active for players');
     
     // Send email notifications to all players
     if (isEmailServiceConfigured()) {
@@ -349,7 +456,7 @@ export default function AdminRoundV1() {
         mockPlayers,
         'active',
         {
-          roundNumber: parseInt(roundNumber) || 0,
+          roundNumber: parseInt(roundNumberInput, 10) || 0,
           roundType: isPostponed ? 'postponed' : 'regular',
           deadline: deadline,
           appUrl: `${window.location.origin}/version1/active`,
@@ -382,7 +489,7 @@ export default function AdminRoundV1() {
       }
     }
     setStatus('scheduled');
-    toast.success('Round unpublished');
+    toast.success(isPostponed ? 'Postponed set unpublished' : 'Round unpublished');
   };
 
   const handleSetFinal = async () => {
@@ -402,7 +509,7 @@ export default function AdminRoundV1() {
           .from('matches')
           .update({
             result: match.result,
-            is_match_of_the_week: matchOfTheWeek === match.id,
+            is_match_of_the_week: isPostponed ? false : matchOfTheWeek === match.id,
           })
           .eq('id', match.id)
       )
@@ -427,7 +534,7 @@ export default function AdminRoundV1() {
 
     setStatus('final');
     setSetFinalError('');
-    toast.success('Round set to final, results published');
+    toast.success(isPostponed ? 'Postponed set finalized, results published' : 'Round set to final, results published');
     
     // Send email notifications to all players
     if (isEmailServiceConfigured()) {
@@ -447,7 +554,7 @@ export default function AdminRoundV1() {
         mockPlayers,
         'final',
         {
-          roundNumber: parseInt(roundNumber) || 0,
+          roundNumber: parseInt(roundNumberInput, 10) || 0,
           roundType: isPostponed ? 'postponed' : 'regular',
           appUrl: `${window.location.origin}/version1/rounds`,
         }
@@ -463,75 +570,61 @@ export default function AdminRoundV1() {
   };
 
   const handleSave = async () => {
-    if (isNew && !isPostponed && !roundNumberInput.trim()) {
+    if (isNew && !roundNumberInput.trim()) {
       toast.error('Please enter a round number');
       return;
     }
-    if (!isPostponed) {
-      if (!competitionId) {
-        toast.error('No active competition found');
+    if (!competitionId) {
+      toast.error('No active competition found');
+      return;
+    }
+
+    let currentRoundId = roundId;
+    if (!currentRoundId) {
+      const { data: created, error } = await supabase
+        .from('rounds')
+        .insert({
+          competition_id: competitionId,
+          round_number: parseInt(roundNumberInput, 10),
+          round_type: isPostponed ? 'standalone' : 'regular',
+          deadline: new Date(deadline).toISOString(),
+          status: 'scheduled',
+        })
+        .select('id')
+        .single();
+
+      if (error || !created) {
+        toast.error('Failed to save round');
         return;
       }
 
-      let currentRoundId = roundId;
-      if (!currentRoundId) {
-        const { data: created, error } = await supabase
-          .from('rounds')
-          .insert({
-            competition_id: competitionId,
-            round_number: parseInt(roundNumberInput, 10),
-            round_type: 'regular',
-            deadline: new Date(deadline).toISOString(),
-            status: 'scheduled',
-          })
-          .select('id')
-          .single();
-
-        if (error || !created) {
-          toast.error('Failed to save round');
-          return;
-        }
-
-        currentRoundId = created.id;
-        setRoundId(created.id);
-      } else {
-        const { error } = await supabase
-          .from('rounds')
-          .update({ deadline: new Date(deadline).toISOString() })
-          .eq('id', currentRoundId);
-
-        if (error) {
-          toast.error('Failed to update round');
-          return;
-        }
-      }
-
-      await Promise.all(
-        matches.map((match) =>
-          supabase
-            .from('matches')
-            .update({
-              kickoff: new Date(match.kickoff).toISOString(),
-              include_in_round: match.includeInRound,
-              result: match.result,
-              is_match_of_the_week: matchOfTheWeek === match.id,
-            })
-            .eq('id', match.id)
-        )
-      );
+      currentRoundId = created.id;
+      setRoundId(created.id);
     } else {
-      await Promise.all(
-        matches.map((match) =>
-          supabase
-            .from('matches')
-            .update({
-              kickoff: new Date(match.kickoff).toISOString(),
-              result: match.result,
-            })
-            .eq('id', match.id)
-        )
-      );
+      const { error } = await supabase
+        .from('rounds')
+        .update({ deadline: new Date(deadline).toISOString() })
+        .eq('id', currentRoundId);
+
+      if (error) {
+        toast.error('Failed to update round');
+        return;
+      }
     }
+
+    await Promise.all(
+      matches.map((match) =>
+        supabase
+          .from('matches')
+          .update({
+            kickoff: new Date(match.kickoff).toISOString(),
+            include_in_round: isPostponed ? true : match.includeInRound,
+            result: match.result,
+            is_match_of_the_week: isPostponed ? false : matchOfTheWeek === match.id,
+          })
+          .eq('id', match.id)
+      )
+    );
 
     toast.success('Changes saved');
   };
@@ -562,7 +655,7 @@ export default function AdminRoundV1() {
           <div>
             <h1 className="text-3xl font-bold text-white mb-2">
               {isPostponed 
-                ? (isNew ? 'Create New Postponed Game' : `Postponed Game ${roundNumber}`)
+                ? (isNew ? 'Create New Postponed Set' : `Postponed Set ${roundNumber}`)
                 : (isNew ? 'Create New Round' : `Round ${roundNumber}`)
               }
             </h1>
@@ -574,23 +667,25 @@ export default function AdminRoundV1() {
         </div>
       </div>
 
-      {!isPostponed && (
-        <div className="bg-slate-900 border border-slate-800 rounded-lg p-6 mb-6">
-          <h2 className="text-xl font-bold text-white mb-4">Round Details</h2>
-          <div className="max-w-md">
-            <Label className="text-slate-300 mb-2 block">Round Number</Label>
-            <Input
-              type="number"
-              min={1}
-              value={roundNumberInput}
-              onChange={(e) => setRoundNumberInput(e.target.value)}
-              disabled={!isNew && status !== 'scheduled'}
-              placeholder="e.g., 1"
-              className="bg-slate-800 border-slate-700 text-white"
-            />
-          </div>
+      <div className="bg-slate-900 border border-slate-800 rounded-lg p-6 mb-6">
+        <h2 className="text-xl font-bold text-white mb-4">
+          {isPostponed ? 'Postponed Set Details' : 'Round Details'}
+        </h2>
+        <div className="max-w-md">
+          <Label className="text-slate-300 mb-2 block">
+            {isPostponed ? 'Set Number' : 'Round Number'}
+          </Label>
+          <Input
+            type="number"
+            min={1}
+            value={roundNumberInput}
+            onChange={(e) => setRoundNumberInput(e.target.value)}
+            disabled={!isNew && status !== 'scheduled'}
+            placeholder={isPostponed ? 'e.g., 101' : 'e.g., 1'}
+            className="bg-slate-800 border-slate-700 text-white"
+          />
         </div>
-      )}
+      </div>
 
       {/* Deadline */}
       <div className="bg-slate-900 border border-slate-800 rounded-lg p-6 mb-6">
@@ -605,7 +700,7 @@ export default function AdminRoundV1() {
           className="bg-slate-800 border-slate-700 text-white max-w-md disabled:opacity-50 disabled:cursor-not-allowed"
         />
         {isPostponed && (
-          <p className="text-slate-500 text-sm mt-2">Applies to this postponed game</p>
+          <p className="text-slate-500 text-sm mt-2">Applies to this postponed set</p>
         )}
       </div>
 
@@ -615,7 +710,7 @@ export default function AdminRoundV1() {
           <h2 className="text-xl font-bold text-white">
             {isPostponed ? `Match${matches.filter(m => m.includeInRound).length > 1 ? 'es' : ''} (${matches.filter(m => m.includeInRound).length})` : `Matches (${matches.filter(m => m.includeInRound).length})`}
           </h2>
-          {status === 'scheduled' && (
+          {status === 'scheduled' && !isPostponed && (
             <Button size="sm" onClick={() => setShowAddMatch(!showAddMatch)} className="bg-blue-600 hover:bg-blue-700">
               <Plus className="w-4 h-4 mr-2" />
               Add Match
@@ -629,16 +724,18 @@ export default function AdminRoundV1() {
             <p className="text-blue-400 text-sm">
               {status === 'active' 
                 ? isPostponed
-                  ? '📝 Game is Active - Only results can be edited. To change dates/times or add/remove matches, click "Unpublish" first.'
+                  ? '📝 Postponed Set is Active - Only results can be edited. To change dates/times or add/remove matches, click "Unpublish" first.'
                   : '📝 Round is Active - Only results can be edited. To change MOTW or add/remove matches, click "Unpublish" first.'
-                : '🔒 Round is Final - To make changes, click "Edit Round" first.'
+                : isPostponed
+                  ? '🔒 Postponed Set is Final - To make changes, click "Edit Set" first.'
+                  : '🔒 Round is Final - To make changes, click "Edit Round" first.'
               }
             </p>
           </div>
         )}
 
         {/* Add Match Form */}
-        {showAddMatch && (
+        {showAddMatch && !isPostponed && (
           <div className="bg-slate-800 rounded-lg p-4 mb-4">
             <div className="grid grid-cols-2 gap-4 mb-4">
               <div>
@@ -801,10 +898,12 @@ export default function AdminRoundV1() {
         </div>
       </div>
 
-      {/* Postponed Games Section */}
+      {/* Postponed Pool / Postponed Games Section */}
       {postponedMatches.length > 0 && (
         <div className="bg-slate-900 border border-slate-800 rounded-lg p-6 mb-6">
-          <h2 className="text-xl font-bold text-white mb-4">Postponed Games ({postponedMatches.length})</h2>
+          <h2 className="text-xl font-bold text-white mb-4">
+            {isPostponed ? `Postponed Pool (${postponedMatches.length})` : `Postponed Games (${postponedMatches.length})`}
+          </h2>
           <div className="space-y-3">
             {postponedMatches.map((match) => (
               <div key={match.id} className="bg-slate-800 rounded-lg p-4">
@@ -813,11 +912,26 @@ export default function AdminRoundV1() {
                     <div className="text-white font-medium">
                       {match.homeTeam} vs {match.awayTeam}
                     </div>
-                    <div className="text-slate-400 text-sm">From Round {match.originalRound}</div>
+                    {isPostponed ? (
+                      <div className="text-slate-400 text-sm">Kickoff: {new Date(match.kickoff).toLocaleString()}</div>
+                    ) : (
+                      <div className="text-slate-400 text-sm">From Round {match.originalRound}</div>
+                    )}
                   </div>
-                  <Badge className="bg-orange-500/20 text-orange-400 border-orange-500/30">
-                    POSTPONED
-                  </Badge>
+                  {isPostponed ? (
+                    <Button
+                      size="sm"
+                      onClick={() => handleAttachPostponedMatch(match.id)}
+                      className="bg-blue-600 hover:bg-blue-700"
+                      disabled={status !== 'scheduled'}
+                    >
+                      Add to Set
+                    </Button>
+                  ) : (
+                    <Badge className="bg-orange-500/20 text-orange-400 border-orange-500/30">
+                      POSTPONED
+                    </Badge>
+                  )}
                 </div>
               </div>
             ))}
@@ -835,9 +949,9 @@ export default function AdminRoundV1() {
       {/* Actions */}
       <div className="flex gap-3">
         {status === 'final' ? (
-          <Button onClick={() => { setStatus('active'); toast.info('Round unlocked for editing'); }} className="bg-blue-600 hover:bg-blue-700">
+          <Button onClick={() => { setStatus('active'); toast.info(isPostponed ? 'Set unlocked for editing' : 'Round unlocked for editing'); }} className="bg-blue-600 hover:bg-blue-700">
             <Unlock className="w-4 h-4 mr-2" />
-            Edit Round
+            {isPostponed ? 'Edit Set' : 'Edit Round'}
           </Button>
         ) : (
           <>
@@ -849,7 +963,7 @@ export default function AdminRoundV1() {
             {status === 'scheduled' && (
               <Button onClick={handlePublish} className="bg-green-600 hover:bg-green-700">
                 <Lock className="w-4 h-4 mr-2" />
-                Publish Round
+                {isPostponed ? 'Publish Set' : 'Publish Round'}
               </Button>
             )}
             
@@ -901,7 +1015,7 @@ export default function AdminRoundV1() {
           <AlertDialogHeader>
             <AlertDialogTitle className="text-white">Postpone Match?</AlertDialogTitle>
             <AlertDialogDescription className="text-slate-400">
-              Are you sure you want to postpone this match? It will be moved to the Postponed Games section and can be published separately later.
+              Are you sure you want to postpone this match? It will be moved to the postponed pool and can be published in a postponed set later.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -919,12 +1033,22 @@ export default function AdminRoundV1() {
       </AlertDialog>
 
       {/* Publish Warning Dialog */}
-      <AlertDialog open={publishWarning} onOpenChange={setPublishWarning}>
+      <AlertDialog
+        open={publishWarning}
+        onOpenChange={(open) => {
+          setPublishWarning(open);
+          if (!open) {
+            setActiveConflict(null);
+          }
+        }}
+      >
         <AlertDialogContent className="bg-slate-900 border-slate-800">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-white">Another Round is Already Active</AlertDialogTitle>
+            <AlertDialogTitle className="text-white">Another Prediction Container Is Active</AlertDialogTitle>
             <AlertDialogDescription className="text-slate-400">
-              Only one round can be active at a time. Please change the current active round (Round 16) to "Scheduled" before publishing this round.
+              Only one prediction container can be active at a time. Please unpublish the current{' '}
+              {activeConflict?.type === 'postponed' ? 'Postponed Set' : 'Round'}{' '}
+              {activeConflict?.number ?? ''} before publishing this {isPostponed ? 'postponed set' : 'round'}.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

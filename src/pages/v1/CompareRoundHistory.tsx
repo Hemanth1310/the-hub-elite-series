@@ -41,6 +41,7 @@ export default function CompareRoundHistoryV1() {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [roundId, setRoundId] = useState<string | null>(null);
+  const [roundType, setRoundType] = useState<'regular' | 'standalone' | null>(null);
   const [matches, setMatches] = useState<MatchRow[]>([]);
   const [users, setUsers] = useState<UserRow[]>([]);
   const [predictions, setPredictions] = useState<PredictionRow[]>([]);
@@ -52,12 +53,13 @@ export default function CompareRoundHistoryV1() {
 
       const { data: round } = await supabase
         .from('rounds')
-        .select('id')
+        .select('id,round_type')
         .eq('round_number', roundNumber)
         .single();
 
       if (!round) {
         setRoundId(null);
+        setRoundType(null);
         setMatches([]);
         setUsers([]);
         setPredictions([]);
@@ -67,6 +69,7 @@ export default function CompareRoundHistoryV1() {
       }
 
       setRoundId(round.id);
+      setRoundType(round.round_type);
 
       const { data: matchRows } = await supabase
         .from('matches')
@@ -158,6 +161,7 @@ export default function CompareRoundHistoryV1() {
   }, [predictions]);
 
   const pointMap = useMemo(() => new Map(points.map((row) => [row.userId, row.points])), [points]);
+  const isPostponed = roundType === 'standalone';
 
   return (
     <LayoutV1>
@@ -173,7 +177,7 @@ export default function CompareRoundHistoryV1() {
         </Link>
         <h1 className="text-2xl sm:text-3xl font-bold text-white flex items-center gap-3">
           <Users className="w-7 h-7" />
-          Compare Round {roundNumber}
+          {isPostponed ? `Compare Postponed Set ${roundNumber}` : `Compare Round ${roundNumber}`}
         </h1>
         <p className="text-slate-400 text-sm mt-2">Select a player to compare predictions</p>
       </div>
@@ -268,10 +272,10 @@ export default function CompareRoundHistoryV1() {
                   const theirCorrect = theirPick === match.result;
                   
                   return (
-                    <div key={match.id} className={`bg-slate-800/50 rounded-lg p-4 mb-4 ${match.isMatchOfTheWeek ? 'ring-2 ring-yellow-500/50' : ''}`}>
+                    <div key={match.id} className={`bg-slate-800/50 rounded-lg p-4 mb-4 ${!isPostponed && match.isMatchOfTheWeek ? 'ring-2 ring-yellow-500/50' : ''}`}>
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2 flex-1">
-                          {match.isMatchOfTheWeek && (
+                          {!isPostponed && match.isMatchOfTheWeek && (
                             <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/40 flex items-center gap-1 text-xs font-bold mr-2 px-1.5 py-0.5">
                               <Star className="w-3 h-3 fill-current" />
                             </Badge>
@@ -294,7 +298,7 @@ export default function CompareRoundHistoryV1() {
                         <div>
                           <div className="text-slate-400 text-xs mb-1">You</div>
                           <div className="flex items-center gap-1">
-                            {myConviction && <Star className="w-3 h-3 text-blue-400 fill-current" />}
+                            {!isPostponed && myConviction && <Star className="w-3 h-3 text-blue-400 fill-current" />}
                             <span className={`font-semibold ${myCorrect ? 'text-green-400' : 'text-red-400'}`}>
                               {myPick || '—'}
                             </span>
@@ -303,7 +307,7 @@ export default function CompareRoundHistoryV1() {
                         <div>
                           <div className="text-slate-400 text-xs mb-1">{users.find(u => u.id === selectedUserId)?.name}</div>
                           <div className="flex items-center gap-1">
-                            {theirConviction && <Star className="w-3 h-3 text-blue-400 fill-current" />}
+                            {!isPostponed && theirConviction && <Star className="w-3 h-3 text-blue-400 fill-current" />}
                             <span className={`font-semibold ${theirCorrect ? 'text-green-400' : 'text-red-400'}`}>
                               {theirPick || '—'}
                             </span>
@@ -356,7 +360,7 @@ export default function CompareRoundHistoryV1() {
                       return (
                         <TableRow key={match.id} className="border-slate-800 hover:bg-slate-800/50">
                           <TableCell>
-                            {match.isMatchOfTheWeek && (
+                            {!isPostponed && match.isMatchOfTheWeek && (
                               <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/40 flex items-center gap-1 text-xs font-bold mb-2 w-fit px-2 py-0.5">
                                 <Star className="w-3 h-3 fill-current" />
                                 MOTW
@@ -375,7 +379,7 @@ export default function CompareRoundHistoryV1() {
                           </TableCell>
                           <TableCell className="text-center">
                             <div className="flex items-center justify-center gap-1">
-                              {myConviction && <Star className="w-3 h-3 text-blue-400 fill-current" />}
+                              {!isPostponed && myConviction && <Star className="w-3 h-3 text-blue-400 fill-current" />}
                               <span className={`font-semibold ${myCorrect ? 'text-green-400' : 'text-red-400'}`}>
                                 {myPick || '—'}
                               </span>
@@ -383,7 +387,7 @@ export default function CompareRoundHistoryV1() {
                           </TableCell>
                           <TableCell className="text-center">
                             <div className="flex items-center justify-center gap-1">
-                              {theirConviction && <Star className="w-3 h-3 text-blue-400 fill-current" />}
+                              {!isPostponed && theirConviction && <Star className="w-3 h-3 text-blue-400 fill-current" />}
                               <span className={`font-semibold ${theirCorrect ? 'text-green-400' : 'text-red-400'}`}>
                                 {theirPick || '—'}
                               </span>

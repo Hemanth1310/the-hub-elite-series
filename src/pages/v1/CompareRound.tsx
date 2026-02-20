@@ -14,6 +14,7 @@ import { useAuth } from '@/contexts/AuthContext';
 type RoundInfo = {
   id: string;
   number: number;
+  roundType: 'regular' | 'standalone';
 };
 
 type MatchRow = {
@@ -58,7 +59,7 @@ export default function CompareRoundV1() {
       const roundStatus = isFinal ? 'final' : 'published';
       const { data: roundRow } = await supabase
         .from('rounds')
-        .select('id,round_number')
+        .select('id,round_number,round_type')
         .eq('status', roundStatus)
         .order('round_number', { ascending: false })
         .limit(1)
@@ -73,7 +74,7 @@ export default function CompareRoundV1() {
         return;
       }
 
-      setRound({ id: roundRow.id, number: roundRow.round_number });
+      setRound({ id: roundRow.id, number: roundRow.round_number, roundType: roundRow.round_type });
 
       const { data: matchRows } = await supabase
         .from('matches')
@@ -140,6 +141,8 @@ export default function CompareRoundV1() {
     result: isFinal ? match.result : null,
   }));
 
+  const isPostponed = round?.roundType === 'standalone';
+
   const predictionMap = useMemo(() => {
     const map = new Map<string, { picks: Record<string, MatchResult>; banker: string | null }>();
     predictions.forEach((row) => {
@@ -173,7 +176,9 @@ export default function CompareRoundV1() {
           </Button>
         </Link>
         <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">Compare Predictions</h1>
-        <p className="text-slate-400 text-sm">Round {round?.number ?? '—'} - Side by side comparison</p>
+        <p className="text-slate-400 text-sm">
+          {isPostponed ? `Postponed Set ${round?.number ?? '—'}` : `Round ${round?.number ?? '—'}`} - Side by side comparison
+        </p>
       </div>
 
       {loading && (
@@ -224,10 +229,10 @@ export default function CompareRoundV1() {
 
           return (
             <Card key={match.id} className="bg-slate-900 border-slate-800 p-3">
-              <div key={match.id} className={`bg-slate-800/50 rounded-lg p-4 mb-4 ${match.isMatchOfTheWeek ? 'ring-2 ring-yellow-500/50' : ''}`}>
+              <div key={match.id} className={`bg-slate-800/50 rounded-lg p-4 mb-4 ${!isPostponed && match.isMatchOfTheWeek ? 'ring-2 ring-yellow-500/50' : ''}`}>
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2 flex-1">
-                    {match.isMatchOfTheWeek && (
+                    {!isPostponed && match.isMatchOfTheWeek && (
                       <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/40 flex items-center gap-1 text-xs font-bold mr-2 px-1.5 py-0.5">
                         <Star className="w-3 h-3 fill-current" />
                       </Badge>
@@ -250,7 +255,7 @@ export default function CompareRoundV1() {
                   <div>
                     <div className="text-xs text-slate-400 mb-2 flex items-center justify-between">
                       <span>You</span>
-                      {myConviction && <Star className="w-3 h-3 text-blue-400 fill-current" />}
+                      {!isPostponed && myConviction && <Star className="w-3 h-3 text-blue-400 fill-current" />}
                     </div>
                     <Badge
                       className={`w-full justify-center font-bold ${
@@ -269,7 +274,7 @@ export default function CompareRoundV1() {
                   <div>
                     <div className="text-xs text-slate-400 mb-2 flex items-center justify-between">
                       <span>{selectedUser?.name}</span>
-                      {theirConviction && <Star className="w-3 h-3 text-blue-400 fill-current" />}
+                      {!isPostponed && theirConviction && <Star className="w-3 h-3 text-blue-400 fill-current" />}
                     </div>
                     <Badge
                       className={`w-full justify-center font-bold ${
@@ -327,7 +332,7 @@ export default function CompareRoundV1() {
                 return (
                   <TableRow key={match.id} className="border-slate-800 hover:bg-slate-800/50">
                     <TableCell>
-                      {match.isMatchOfTheWeek && (
+                      {!isPostponed && match.isMatchOfTheWeek && (
                         <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/40 flex items-center gap-1 text-xs font-bold mb-2 w-fit px-2 py-0.5">
                           <Star className="w-3 h-3 fill-current" />
                           MOTW
@@ -341,7 +346,7 @@ export default function CompareRoundV1() {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center justify-center gap-1">
-                        {myConviction && <Star className="w-3 h-3 text-blue-400 fill-current shrink-0" />}
+                        {!isPostponed && myConviction && <Star className="w-3 h-3 text-blue-400 fill-current shrink-0" />}
                         <span
                           className={`font-semibold text-base ${
                             isFinal && myCorrect
@@ -364,7 +369,7 @@ export default function CompareRoundV1() {
                     )}
                     <TableCell>
                       <div className="flex items-center justify-center gap-1">
-                        {theirConviction && <Star className="w-3 h-3 text-blue-400 fill-current shrink-0" />}
+                        {!isPostponed && theirConviction && <Star className="w-3 h-3 text-blue-400 fill-current shrink-0" />}
                         <span
                           className={`font-semibold text-base ${
                             isFinal && theirCorrect
