@@ -560,6 +560,19 @@ export default function ThisRoundV1() {
                   <li>✓ Correct banker = <span className="text-green-400 font-semibold">6 points</span> (double!)</li>
                   <li>✗ Wrong banker = <span className="text-red-400 font-semibold">-3 points</span> (penalty)</li>
                 </ul>
+                <div className="mt-4">
+                   <h3 className="font-semibold text-white mb-2 flex items-center gap-2">
+                    <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
+                    Match of the Week
+                  </h3>
+                  
+                  <p className="text-sm mb-2">The admin designates one special match with enhanced scoring:</p>
+                  <ul className="text-sm space-y-1 ml-4">
+                    <li>✓ Correct MOTW = <span className="text-green-400 font-semibold">6 points</span> (double!)</li>
+                    <li>✗ Wrong MOTW = <span className="text-slate-300 font-semibold">0 points</span> (no penalty)</li>
+                    <li>🎯 Banker + MOTW = <span className="text-green-400 font-semibold">12 points</span> if correct / <span className="text-red-400 font-semibold">-6 points</span> if wrong</li>
+                  </ul>
+                </div>
               </div>
             )}
             {roundType === 'postponed' && (
