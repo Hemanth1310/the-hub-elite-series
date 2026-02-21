@@ -75,12 +75,15 @@ export default function RoundsV1() {
         return;
       }
 
+      const nowIso = new Date().toISOString();
+
       const { data: roundRows } = await supabase
         .from('rounds')
-        .select('id,round_number,deadline,round_type')
+        .select('id,round_number,deadline,round_type,status')
         .eq('competition_id', activeCompetition.id)
-        .eq('status', 'final')
-        .order('round_number', { ascending: false });
+        .in('status', ['final', 'published'])
+        .lte('deadline', nowIso)
+        .order('deadline', { ascending: false });
 
       if (!roundRows || roundRows.length === 0) {
         setRounds([]);
