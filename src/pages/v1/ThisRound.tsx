@@ -426,6 +426,8 @@ export default function ThisRoundV1() {
             <div className="text-sm text-slate-400">
               {!displayMatches.every(m => predictions[m.id]) ? (
                 <span>Complete all predictions to save</span>
+              ) : roundType === 'round' && !bankerMatchId ? (
+                <span>Select a banker to save</span>
               ) : isSaved ? (
                 <span className="text-green-400">✓ All predictions saved</span>
               ) : (
@@ -436,6 +438,11 @@ export default function ThisRoundV1() {
               onClick={() => {
                 if (!user) {
                   toast.error('You must be logged in to save predictions.');
+                  return;
+                }
+
+                if (roundType === 'round' && !bankerMatchId) {
+                  toast.error('Please select a banker before saving.');
                   return;
                 }
 
