@@ -64,7 +64,7 @@ export default function AdminV1() {
         .from('rounds')
         .select('id,round_number,deadline,status,round_type')
         .eq('competition_id', selectedCompetition)
-        .order('round_number', { ascending: false });
+        .order('round_number', { ascending: true });
 
       const roundsWithStats = await Promise.all(
         (roundRows || []).map(async (round) => {
