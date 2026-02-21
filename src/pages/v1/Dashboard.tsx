@@ -59,7 +59,7 @@ export default function DashboardV1() {
         .select('id,round_number,deadline,status')
         .eq('competition_id', activeCompetition.id)
         .eq('status', 'published')
-        .order('round_number', { ascending: false })
+        .order('deadline', { ascending: false })
         .limit(1)
         .maybeSingle();
 
@@ -90,10 +90,11 @@ export default function DashboardV1() {
       } else {
         const { data: finalRound } = await supabase
           .from('rounds')
-          .select('round_number')
+          .select('round_number,deadline')
           .eq('competition_id', activeCompetition.id)
           .eq('status', 'final')
-          .order('round_number', { ascending: false })
+          .lte('deadline', new Date().toISOString())
+          .order('deadline', { ascending: false })
           .limit(1)
           .maybeSingle();
         setCurrentRoundNumber(finalRound?.round_number || null);
@@ -122,7 +123,8 @@ export default function DashboardV1() {
         .select('id')
         .eq('competition_id', activeCompetition.id)
         .eq('status', 'final')
-        .order('round_number', { ascending: false })
+        .lte('deadline', new Date().toISOString())
+        .order('deadline', { ascending: false })
         .limit(1)
         .maybeSingle();
 

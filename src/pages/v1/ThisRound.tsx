@@ -68,14 +68,45 @@ export default function ThisRoundV1() {
         return;
       }
 
-      const { data: activeRound, error: roundError } = await supabase
+      let activeRound: {
+        id: string;
+        round_number: number;
+        round_type: string;
+        deadline: string;
+        status: 'scheduled' | 'published' | 'final';
+      } | null = null;
+      let roundError: Error | null = null;
+
+      const { data: publishedRound, error: publishedError } = await supabase
         .from('rounds')
         .select('id,round_number,round_type,deadline,status')
         .eq('competition_id', activeCompetition.id)
         .eq('status', 'published')
-        .order('round_number', { ascending: false })
+        .order('deadline', { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
+
+      if (publishedError) {
+        roundError = publishedError;
+      } else if (publishedRound) {
+        activeRound = publishedRound;
+      } else {
+        const { data: finalRound, error: finalError } = await supabase
+          .from('rounds')
+          .select('id,round_number,round_type,deadline,status')
+          .eq('competition_id', activeCompetition.id)
+          .eq('status', 'final')
+          .lte('deadline', new Date().toISOString())
+          .order('deadline', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (finalError) {
+          roundError = finalError;
+        } else {
+          activeRound = finalRound;
+        }
+      }
 
       if (roundError || !activeRound) {
         setRound(null);
