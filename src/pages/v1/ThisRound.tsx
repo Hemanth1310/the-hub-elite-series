@@ -76,6 +76,7 @@ export default function ThisRoundV1() {
         status: 'scheduled' | 'published' | 'final';
       } | null = null;
       let roundError: Error | null = null;
+      const nowIso = new Date().toISOString();
 
       const { data: publishedRound, error: publishedError } = await supabase
         .from('rounds')
@@ -86,26 +87,33 @@ export default function ThisRoundV1() {
         .limit(1)
         .maybeSingle();
 
+      const { data: finalRound, error: finalError } = await supabase
+        .from('rounds')
+        .select('id,round_number,round_type,deadline,status')
+        .eq('competition_id', activeCompetition.id)
+        .eq('status', 'final')
+        .lte('deadline', nowIso)
+        .order('deadline', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
       if (publishedError) {
         roundError = publishedError;
+      } else if (finalError) {
+        roundError = finalError;
       } else if (publishedRound) {
-        activeRound = publishedRound;
-      } else {
-        const { data: finalRound, error: finalError } = await supabase
-          .from('rounds')
-          .select('id,round_number,round_type,deadline,status')
-          .eq('competition_id', activeCompetition.id)
-          .eq('status', 'final')
-          .lte('deadline', new Date().toISOString())
-          .order('deadline', { ascending: false })
-          .limit(1)
-          .maybeSingle();
+        const publishedDeadline = new Date(publishedRound.deadline).getTime();
+        const finalDeadline = finalRound ? new Date(finalRound.deadline).getTime() : null;
 
-        if (finalError) {
-          roundError = finalError;
-        } else {
+        if (publishedDeadline > Date.now()) {
+          activeRound = publishedRound;
+        } else if (finalRound && finalDeadline !== null && finalDeadline >= publishedDeadline) {
           activeRound = finalRound;
+        } else {
+          activeRound = publishedRound;
         }
+      } else {
+        activeRound = finalRound;
       }
 
       if (roundError || !activeRound) {

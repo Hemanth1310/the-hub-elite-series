@@ -54,6 +54,8 @@ export default function DashboardV1() {
         return;
       }
 
+      const nowIso = new Date().toISOString();
+
       const { data: roundRow } = await supabase
         .from('rounds')
         .select('id,round_number,deadline,status')
@@ -63,42 +65,62 @@ export default function DashboardV1() {
         .limit(1)
         .maybeSingle();
 
+      const { data: finalRound } = await supabase
+        .from('rounds')
+        .select('id,round_number,deadline,status')
+        .eq('competition_id', activeCompetition.id)
+        .eq('status', 'final')
+        .lte('deadline', nowIso)
+        .order('deadline', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      let activeRound = roundRow;
+
       if (roundRow) {
-        setCurrentRoundNumber(roundRow.round_number);
-        const deadline = new Date(roundRow.deadline);
-        const isLocked = deadline.getTime() < Date.now();
-        setRoundStatus(isLocked ? 'locked' : 'open');
-        setTimeRemaining(formatTimeRemainingCompact(deadline));
+        const publishedDeadline = new Date(roundRow.deadline).getTime();
+        const finalDeadline = finalRound ? new Date(finalRound.deadline).getTime() : null;
 
-        const { count: matchCount } = await supabase
-          .from('matches')
-          .select('id', { count: 'exact', head: true })
-          .eq('round_id', roundRow.id)
-          .eq('include_in_round', true);
+        if (publishedDeadline <= Date.now() && finalRound && finalDeadline !== null && finalDeadline >= publishedDeadline) {
+          activeRound = finalRound;
+        }
+      } else if (finalRound) {
+        activeRound = finalRound;
+      }
 
-        const { count: predictionCount } = await supabase
-          .from('predictions')
-          .select('id', { count: 'exact', head: true })
-          .eq('round_id', roundRow.id)
-          .eq('user_id', user.id);
-
-        if (matchCount && predictionCount) {
-          setPredictionsComplete(predictionCount >= matchCount);
-        } else {
+      if (activeRound) {
+        setCurrentRoundNumber(activeRound.round_number);
+        const deadline = new Date(activeRound.deadline);
+        if (activeRound.status === 'final') {
+          setRoundStatus('final');
+          setTimeRemaining('');
           setPredictionsComplete(false);
+        } else {
+          const isLocked = deadline.getTime() < Date.now();
+          setRoundStatus(isLocked ? 'locked' : 'open');
+          setTimeRemaining(formatTimeRemainingCompact(deadline));
+
+          const { count: matchCount } = await supabase
+            .from('matches')
+            .select('id', { count: 'exact', head: true })
+            .eq('round_id', activeRound.id)
+            .eq('include_in_round', true);
+
+          const { count: predictionCount } = await supabase
+            .from('predictions')
+            .select('id', { count: 'exact', head: true })
+            .eq('round_id', activeRound.id)
+            .eq('user_id', user.id);
+
+          if (matchCount && predictionCount) {
+            setPredictionsComplete(predictionCount >= matchCount);
+          } else {
+            setPredictionsComplete(false);
+          }
         }
       } else {
-        const { data: finalRound } = await supabase
-          .from('rounds')
-          .select('round_number,deadline')
-          .eq('competition_id', activeCompetition.id)
-          .eq('status', 'final')
-          .lte('deadline', new Date().toISOString())
-          .order('deadline', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        setCurrentRoundNumber(finalRound?.round_number || null);
-        setRoundStatus(finalRound ? 'final' : 'open');
+        setCurrentRoundNumber(null);
+        setRoundStatus('open');
         setPredictionsComplete(false);
       }
 
@@ -123,7 +145,7 @@ export default function DashboardV1() {
         .select('id')
         .eq('competition_id', activeCompetition.id)
         .eq('status', 'final')
-        .lte('deadline', new Date().toISOString())
+        .lte('deadline', nowIso)
         .order('deadline', { ascending: false })
         .limit(1)
         .maybeSingle();
