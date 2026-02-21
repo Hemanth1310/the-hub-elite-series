@@ -3,6 +3,12 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogContent,
@@ -34,9 +40,12 @@ export default function ThisRoundV1() {
   const [roundType, setRoundType] = useState<'round' | 'postponed'>('round');
   const [isSaved, setIsSaved] = useState(false);
   const [predictions, setPredictions] = useState<Record<string, MatchResult>>({});
+  const [initialPredictions, setInitialPredictions] = useState<Record<string, MatchResult>>({});
   const [bankerMatchId, setBankerMatchId] = useState<string | null>(null);
+  const [initialBankerMatchId, setInitialBankerMatchId] = useState<string | null>(null);
   const [showHowToPredict, setShowHowToPredict] = useState(false);
   const [competitionTick, setCompetitionTick] = useState(0);
+  const [hasChanges, setHasChanges] = useState(false);
 
   useEffect(() => {
     const handleCompetitionChange = () => setCompetitionTick((prev) => prev + 1);
@@ -189,7 +198,12 @@ export default function ThisRoundV1() {
       );
 
       setPredictions(predictionMap);
-      setBankerMatchId(predictionRows?.find((row) => row.is_banker)?.match_id || null);
+      const bankerId = predictionRows?.find((row) => row.is_banker)?.match_id || null;
+      setInitialPredictions(predictionMap);
+      setInitialBankerMatchId(bankerId);
+      setBankerMatchId(bankerId);
+      setIsSaved(true);
+      setHasChanges(false);
       setLoading(false);
     };
 
@@ -204,17 +218,32 @@ export default function ThisRoundV1() {
 
   const handlePredictionChange = (matchId: string, result: MatchResult) => {
     setPredictions(prev => ({ ...prev, [matchId]: result }));
-    setIsSaved(false); // Mark as unsaved when changed
   };
 
   const handleBankerToggle = (matchId: string) => {
     if (roundType !== 'round') return;
     setBankerMatchId(prev => prev === matchId ? null : matchId);
-    setIsSaved(false); // Mark as unsaved when changed
   };
+
+  useEffect(() => {
+    const allSamePredictions = Object.keys({ ...initialPredictions, ...predictions }).every(
+      (key) => initialPredictions[key] === predictions[key]
+    );
+    const bankerSame = initialBankerMatchId === bankerMatchId;
+    const changed = !(allSamePredictions && bankerSame);
+    setHasChanges(changed);
+    if (changed) {
+      setIsSaved(false);
+    }
+  }, [predictions, bankerMatchId, initialPredictions, initialBankerMatchId]);
 
   const canEdit = roundStatus === 'open';
   const showResults = roundStatus === 'final';
+  const saveTooltipMessage = !hasChanges
+    ? 'Make a change to enable saving'
+    : roundType === 'round' && !bankerMatchId
+      ? 'Select a banker to save'
+      : '';
   
   const displayMatches = matches.filter(m => m.includeInRound);
 
@@ -430,54 +459,73 @@ export default function ThisRoundV1() {
                 <span>Select a banker to save</span>
               ) : isSaved ? (
                 <span className="text-green-400">✓ All predictions saved</span>
-              ) : (
+              ) : hasChanges ? (
                 <span className="text-orange-400">⚠ Unsaved changes</span>
+              ) : (
+                <span>Make a change to enable saving</span>
               )}
             </div>
-            <Button 
-              onClick={() => {
-                if (!user) {
-                  toast.error('You must be logged in to save predictions.');
-                  return;
-                }
+            <TooltipProvider>
+              <Tooltip open={!!saveTooltipMessage ? undefined : false}>
+                <TooltipTrigger asChild>
+                  <span className="inline-flex">
+                    <Button 
+                      onClick={() => {
+                        if (!user) {
+                          toast.error('You must be logged in to save predictions.');
+                          return;
+                        }
 
-                if (roundType === 'round' && !bankerMatchId) {
-                  toast.error('Please select a banker before saving.');
-                  return;
-                }
+                        if (roundType === 'round' && !bankerMatchId) {
+                          toast.error('Please select a banker before saving.');
+                          return;
+                        }
 
-                const rows = displayMatches
-                  .filter(m => predictions[m.id])
-                  .map(m => ({
-                    user_id: user.id,
-                    match_id: m.id,
-                    round_id: round.id,
-                    prediction: predictions[m.id],
-                    is_banker: roundType === 'round' && bankerMatchId === m.id,
-                    is_locked: false,
-                  }));
+                        const rows = displayMatches
+                          .filter(m => predictions[m.id])
+                          .map(m => ({
+                            user_id: user.id,
+                            match_id: m.id,
+                            round_id: round.id,
+                            prediction: predictions[m.id],
+                            is_banker: roundType === 'round' && bankerMatchId === m.id,
+                            is_locked: false,
+                          }));
 
-                if (rows.length !== displayMatches.length) {
-                  toast.error('Please complete all predictions before saving.');
-                  return;
-                }
+                        if (rows.length !== displayMatches.length) {
+                          toast.error('Please complete all predictions before saving.');
+                          return;
+                        }
 
-                supabase
-                  .from('predictions')
-                  .upsert(rows, { onConflict: 'user_id,match_id' })
-                  .then(({ error }) => {
-                    if (error) {
-                      toast.error('Failed to save predictions.');
-                      return;
-                    }
-                    toast.success('Predictions saved! You can continue editing until the round is locked.');
-                    setIsSaved(true);
-                  });
-              }} 
-              className="bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              Save Predictions
-            </Button>
+                        supabase
+                          .from('predictions')
+                          .upsert(rows, { onConflict: 'user_id,match_id' })
+                          .then(({ error }) => {
+                            if (error) {
+                              toast.error('Failed to save predictions.');
+                              return;
+                            }
+                            toast.success('Predictions saved! You can continue editing until the round is locked.');
+                            setInitialPredictions(predictions);
+                            setInitialBankerMatchId(bankerMatchId);
+                            setIsSaved(true);
+                            setHasChanges(false);
+                          });
+                      }} 
+                      disabled={!hasChanges || (roundType === 'round' && !bankerMatchId)}
+                      className="bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Save Predictions
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                {saveTooltipMessage && (
+                  <TooltipContent>
+                    <p>{saveTooltipMessage}</p>
+                  </TooltipContent>
+                )}
+              </Tooltip>
+            </TooltipProvider>
           </div>
         )}
       </Card>
