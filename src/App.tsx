@@ -83,7 +83,7 @@ function App() {
           </div>
         </Route>
       </Switch>
-      <Toaster position="bottom-right" />
+      <Toaster position="bottom-right" duration={3000} />
     </AuthProvider>
   );
 }
