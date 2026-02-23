@@ -46,6 +46,7 @@ export default function ThisRoundV1() {
   const [showHowToPredict, setShowHowToPredict] = useState(false);
   const [competitionTick, setCompetitionTick] = useState(0);
   const [hasChanges, setHasChanges] = useState(false);
+  const [predictionStats, setPredictionStats] = useState<Record<string, { H: number; U: number; B: number }>>({});
 
   useEffect(() => {
     const handleCompetitionChange = () => setCompetitionTick((prev) => prev + 1);
@@ -204,6 +205,41 @@ export default function ThisRoundV1() {
       setBankerMatchId(bankerId);
       setIsSaved(true);
       setHasChanges(false);
+
+      if (roundStatusValue !== 'open') {
+        const { data: allPredictionRows } = await supabase
+          .from('predictions')
+          .select('match_id,prediction')
+          .eq('round_id', activeRound.id);
+
+        const totals: Record<string, { H: number; U: number; B: number; total: number }> = {};
+        (allPredictionRows || []).forEach((row: any) => {
+          if (!totals[row.match_id]) {
+            totals[row.match_id] = { H: 0, U: 0, B: 0, total: 0 };
+          }
+          if (row.prediction === 'H' || row.prediction === 'U' || row.prediction === 'B') {
+            totals[row.match_id][row.prediction] += 1;
+            totals[row.match_id].total += 1;
+          }
+        });
+
+        const percentages: Record<string, { H: number; U: number; B: number }> = {};
+        Object.entries(totals).forEach(([matchId, counts]) => {
+          if (counts.total === 0) {
+            percentages[matchId] = { H: 0, U: 0, B: 0 };
+          } else {
+            percentages[matchId] = {
+              H: Math.round((counts.H / counts.total) * 100),
+              U: Math.round((counts.U / counts.total) * 100),
+              B: Math.round((counts.B / counts.total) * 100),
+            };
+          }
+        });
+
+        setPredictionStats(percentages);
+      } else {
+        setPredictionStats({});
+      }
       setLoading(false);
     };
 
@@ -371,6 +407,7 @@ export default function ThisRoundV1() {
             const userPrediction = predictions[match.id];
             const isBanker = bankerMatchId === match.id;
             const isMOTW = match.isMatchOfTheWeek;
+            const percentages = predictionStats[match.id] || { H: 0, U: 0, B: 0 };
             
             // Mock results for demo (in real app, comes from match.result)
             const matchResult = showResults ? match.result : null;
@@ -414,14 +451,29 @@ export default function ThisRoundV1() {
                 <div className="flex flex-col gap-3">
                   {/* Buttons Row */}
                   <div className="flex items-center justify-between gap-2">
-                    <div className="flex gap-2">
-                      <Button size="sm" onClick={() => canEdit && handlePredictionChange(match.id, 'H')} disabled={!canEdit} className={userPrediction === 'H' ? 'bg-blue-600 hover:bg-blue-700 text-white min-w-[40px]' : 'bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700 hover:text-white min-w-[40px]'}>H</Button>
-                      <Button size="sm" onClick={() => canEdit && handlePredictionChange(match.id, 'U')} disabled={!canEdit} className={userPrediction === 'U' ? 'bg-blue-600 hover:bg-blue-700 text-white min-w-[40px]' : 'bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700 hover:text-white min-w-[40px]'}>U</Button>
-                      <Button size="sm" onClick={() => canEdit && handlePredictionChange(match.id, 'B')} disabled={!canEdit} className={userPrediction === 'B' ? 'bg-blue-600 hover:bg-blue-700 text-white min-w-[40px]' : 'bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700 hover:text-white min-w-[40px]'}>B</Button>
+                    <div className="flex gap-2 flex-1">
+                      <div className="flex flex-col items-center flex-1">
+                        <Button size="sm" onClick={() => canEdit && handlePredictionChange(match.id, 'H')} disabled={!canEdit} className={`${userPrediction === 'H' ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700 hover:text-white'} w-full min-w-[40px]`}>H</Button>
+                        {!canEdit && (
+                          <span className="text-xs text-slate-500 mt-1">{percentages.H}%</span>
+                        )}
+                      </div>
+                      <div className="flex flex-col items-center flex-1">
+                        <Button size="sm" onClick={() => canEdit && handlePredictionChange(match.id, 'U')} disabled={!canEdit} className={`${userPrediction === 'U' ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700 hover:text-white'} w-full min-w-[40px]`}>U</Button>
+                        {!canEdit && (
+                          <span className="text-xs text-slate-500 mt-1">{percentages.U}%</span>
+                        )}
+                      </div>
+                      <div className="flex flex-col items-center flex-1">
+                        <Button size="sm" onClick={() => canEdit && handlePredictionChange(match.id, 'B')} disabled={!canEdit} className={`${userPrediction === 'B' ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700 hover:text-white'} w-full min-w-[40px]`}>B</Button>
+                        {!canEdit && (
+                          <span className="text-xs text-slate-500 mt-1">{percentages.B}%</span>
+                        )}
+                      </div>
                     </div>
 
                     {roundType === 'round' && (
-                      <Button size="sm" variant="ghost" onClick={() => canEdit && userPrediction && handleBankerToggle(match.id)} disabled={!canEdit || !userPrediction} className={isBanker ? 'text-yellow-400 hover:text-yellow-300 hover:bg-yellow-500/10' : 'text-slate-600 hover:text-slate-400 hover:bg-slate-800'}>
+                      <Button size="sm" variant="ghost" onClick={() => canEdit && userPrediction && handleBankerToggle(match.id)} disabled={!canEdit || !userPrediction} className={`${isBanker ? 'text-yellow-400 hover:text-yellow-300 hover:bg-yellow-500/10' : 'text-slate-600 hover:text-slate-400 hover:bg-slate-800'} flex-shrink-0`}>
                         <Star className={`w-5 h-5 ${isBanker ? 'fill-yellow-400' : ''}`} />
                       </Button>
                     )}
