@@ -500,11 +500,37 @@ export default function ThisRoundV1() {
                         supabase
                           .from('predictions')
                           .upsert(rows, { onConflict: 'user_id,match_id' })
-                          .then(({ error }) => {
+                          .then(async ({ error }) => {
                             if (error) {
                               toast.error('Failed to save predictions.');
                               return;
                             }
+
+                            if (roundType === 'round' && bankerMatchId) {
+                              const { error: clearError } = await supabase
+                                .from('predictions')
+                                .update({ is_banker: false })
+                                .eq('round_id', round.id)
+                                .eq('user_id', user.id);
+
+                              if (clearError) {
+                                toast.error('Failed to update banker selection.');
+                                return;
+                              }
+
+                              const { error: setError } = await supabase
+                                .from('predictions')
+                                .update({ is_banker: true })
+                                .eq('round_id', round.id)
+                                .eq('user_id', user.id)
+                                .eq('match_id', bankerMatchId);
+
+                              if (setError) {
+                                toast.error('Failed to update banker selection.');
+                                return;
+                              }
+                            }
+
                             toast.success('Predictions saved! You can continue editing until the round is locked.');
                             setInitialPredictions(predictions);
                             setInitialBankerMatchId(bankerMatchId);
