@@ -204,7 +204,7 @@ export default function CompareRoundHistoryV1() {
             className="mb-4 text-blue-400 hover:text-blue-300"
           >
             <ChevronLeft className="w-4 h-4 mr-2" />
-            Back to Rounds
+            Back to History
           </Button>
         </Link>
         <h1 className="text-2xl sm:text-3xl font-bold text-white flex items-center gap-3">

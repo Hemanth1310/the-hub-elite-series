@@ -310,11 +310,11 @@ export default function DashboardV1() {
               <div className="text-green-400 text-base font-semibold">Round Complete</div>
             )}
             
-            {/* Small link to Active Now */}
+            {/* Small link to Round */}
             {roundStatus === 'open' && (
               <Link href="/version1/active">
                 <a className="text-blue-400 hover:text-blue-300 text-sm inline-block">
-                  → Go to Active Now to predict
+                  → Go to Round to predict
                 </a>
               </Link>
             )}
@@ -322,7 +322,7 @@ export default function DashboardV1() {
             {(roundStatus === 'locked' || roundStatus === 'active' || roundStatus === 'completed') && (
               <Link href="/version1/active">
                 <a className="text-blue-400 hover:text-blue-300 text-sm inline-block">
-                  → View your picks
+                  → View your round
                 </a>
               </Link>
             )}
@@ -330,7 +330,7 @@ export default function DashboardV1() {
             {roundStatus === 'final' && (
               <Link href="/version1/active">
                 <a className="text-blue-400 hover:text-blue-300 text-sm inline-block">
-                  → See results
+                  → See round results
                 </a>
               </Link>
             )}

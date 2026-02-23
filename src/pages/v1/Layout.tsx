@@ -104,9 +104,9 @@ export default function LayoutV1({ children }: { children: React.ReactNode }) {
         <nav className="container mx-auto px-2 sm:px-4 py-0">
           <div className="flex gap-0.5 sm:gap-1 justify-around sm:justify-start overflow-x-auto">
             <NavLink href="/version1" icon={Home} label="Home" active={location === '/version1'} />
-            <NavLink href="/version1/active" icon={Target} label="Active Now" active={location === '/version1/active'} />
+            <NavLink href="/version1/active" icon={Target} label="Round" active={location === '/version1/active'} />
             <NavLink href="/version1/leaderboard" icon={Trophy} label="Leaderboard" active={location === '/version1/leaderboard'} />
-            <NavLink href="/version1/rounds" icon={List} label="Rounds" active={location === '/version1/rounds'} />
+            <NavLink href="/version1/rounds" icon={List} label="History" active={location === '/version1/rounds'} />
             <NavLink href="/version1/stats" icon={BarChart3} label="Stats" active={location === '/version1/stats'} />
             
             {user?.isAdmin && (

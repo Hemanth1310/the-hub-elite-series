@@ -246,7 +246,7 @@ export default function RoundsV1() {
             }}
           >
             <ChevronLeft className="w-4 h-4 mr-2" />
-            Back to Rounds
+            Back to History
           </Button>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-2">
             <div className="flex items-center gap-4">
@@ -444,7 +444,7 @@ export default function RoundsV1() {
   return (
     <LayoutV1>
       <div className="mb-8">
-        <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">Round History</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">History</h1>
         <p className="text-slate-400 text-sm">View past rounds and results</p>
       </div>
 
