@@ -244,9 +244,9 @@ export default function CompareRoundV1() {
         <div className="sm:hidden space-y-3">
         {matchesWithResults.map((match, idx) => {
           const myPick = myData?.picks[match.id];
-          const myConviction = myData?.banker === match.id;
+          const myBanker = myData?.banker === match.id;
           const theirPick = otherData?.picks[match.id];
-          const theirConviction = otherData?.banker === match.id;
+          const theirBanker = otherData?.banker === match.id;
           const myCorrect = isFinal && match.result && myPick === match.result;
           const theirCorrect = isFinal && match.result && theirPick === match.result;
 
@@ -278,7 +278,7 @@ export default function CompareRoundV1() {
                   <div>
                     <div className="text-xs text-slate-400 mb-2 flex items-center justify-between">
                       <span>You</span>
-                      {!isPostponed && myConviction && <Star className="w-3 h-3 text-blue-400 fill-current" />}
+                      {!isPostponed && myBanker && <Star className="w-3 h-3 text-blue-400 fill-current" />}
                     </div>
                     <Badge
                       className={`w-full justify-center font-bold ${
@@ -297,7 +297,7 @@ export default function CompareRoundV1() {
                   <div>
                     <div className="text-xs text-slate-400 mb-2 flex items-center justify-between">
                       <span>{selectedUser?.name}</span>
-                      {!isPostponed && theirConviction && <Star className="w-3 h-3 text-blue-400 fill-current" />}
+                      {!isPostponed && theirBanker && <Star className="w-3 h-3 text-blue-400 fill-current" />}
                     </div>
                     <Badge
                       className={`w-full justify-center font-bold ${
@@ -346,9 +346,9 @@ export default function CompareRoundV1() {
             <TableBody>
               {matchesWithResults.map((match, idx) => {
                 const myPick = myData?.picks[match.id];
-                const myConviction = myData?.banker === match.id;
+                const myBanker = myData?.banker === match.id;
                 const theirPick = otherData?.picks[match.id];
-                const theirConviction = otherData?.banker === match.id;
+                const theirBanker = otherData?.banker === match.id;
                 const myCorrect = isFinal && match.result && myPick === match.result;
                 const theirCorrect = isFinal && match.result && theirPick === match.result;
 
@@ -369,7 +369,7 @@ export default function CompareRoundV1() {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center justify-center gap-1">
-                        {!isPostponed && myConviction && <Star className="w-3 h-3 text-blue-400 fill-current shrink-0" />}
+                        {!isPostponed && myBanker && <Star className="w-3 h-3 text-blue-400 fill-current shrink-0" />}
                         <span
                           className={`font-semibold text-base ${
                             isFinal && myCorrect
@@ -392,7 +392,7 @@ export default function CompareRoundV1() {
                     )}
                     <TableCell>
                       <div className="flex items-center justify-center gap-1">
-                        {!isPostponed && theirConviction && <Star className="w-3 h-3 text-blue-400 fill-current shrink-0" />}
+                        {!isPostponed && theirBanker && <Star className="w-3 h-3 text-blue-400 fill-current shrink-0" />}
                         <span
                           className={`font-semibold text-base ${
                             isFinal && theirCorrect

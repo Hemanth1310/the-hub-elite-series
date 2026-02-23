@@ -28,7 +28,7 @@ All 18 API functions that need to be implemented:
 ### 3. `scoring-logic.txt`
 Complete scoring rules and calculations:
 - Point values for all scenarios
-- Conviction rules
+- Banker rules
 - Match of the Week rules
 - Examples of every scoring scenario
 - Explanation of automated calculation
@@ -135,7 +135,7 @@ Before deploying, verify:
 
 - [ ] Users can register via invitation email
 - [ ] Users can submit predictions for all matches
-- [ ] Users can set one conviction per round
+- [ ] Users can set one banker per round
 - [ ] Users can lock/unlock predictions before deadline
 - [ ] Admin can create rounds and add matches
 - [ ] Admin can designate Match of the Week

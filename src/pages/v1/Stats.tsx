@@ -157,7 +157,7 @@ export default function StatsV1() {
                   <th className="text-slate-400 font-semibold text-left pb-3">Round</th>
                   <th className="text-slate-400 font-semibold text-right pb-3">Points</th>
                   <th className="text-slate-400 font-semibold text-right pb-3">Correct</th>
-                  <th className="text-slate-400 font-semibold text-center pb-3">Conv</th>
+                  <th className="text-slate-400 font-semibold text-center pb-3">Banker</th>
                 </tr>
               </thead>
               <tbody>
@@ -234,7 +234,7 @@ export default function StatsV1() {
                   <th className="text-slate-400 font-semibold text-left pb-3">Round</th>
                   <th className="text-slate-400 font-semibold text-right pb-3">Points</th>
                   <th className="text-slate-400 font-semibold text-right pb-3">Correct</th>
-                  <th className="text-slate-400 font-semibold text-center pb-3">Conv</th>
+                  <th className="text-slate-400 font-semibold text-center pb-3">Banker</th>
                 </tr>
               </thead>
               <tbody>

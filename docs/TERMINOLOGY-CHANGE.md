@@ -1,46 +1,46 @@
-# Terminology Change: Conviction → Banker
+# Terminology Change: Banker
 
 ## Overview
-Throughout the entire codebase, "conviction" has been renamed to "banker". This document lists all the changes needed.
+Throughout the entire codebase, the terminology is standardized to "banker". This document lists all the changes needed.
 
 ## Database Changes (Already Updated in schema)
-- Column: `is_conviction` → `is_banker`
-- Column: `conviction_correct` → `banker_correct`
-- Column: `conviction_success` → `banker_success`
-- Column: `conviction_fail` → `banker_fail`
-- Function parameter: `p_is_conviction` → `p_is_banker`
-- Index name: `idx_one_conviction_per_round_per_user` → `idx_one_banker_per_round_per_user`
+- Column: `is_banker`
+- Column: `banker_correct`
+- Column: `banker_success`
+- Column: `banker_fail`
+- Function parameter: `p_is_banker`
+- Index name: `idx_one_banker_per_round_per_user`
 
 ## TypeScript Types (Already Updated)
 ```typescript
 // types.ts
 interface Prediction {
-  isBanker: boolean;  // was: isConviction
+  isBanker: boolean;
 }
 
 interface LeaderboardEntry {
-  bankerCorrect: number;  // was: convictionCorrect
-  bankerWrong: number;     // was: convictionWrong
-  bankerNet: number;       // was: convictionNet
+  bankerCorrect: number;
+  bankerWrong: number;
+  bankerNet: number;
 }
 ```
 
 ## Mock Data (Already Updated)
 ```typescript
 // mockData.ts
-isBanker: boolean       // was: isConviction
-bankerCorrect: number   // was: convictionCorrect
-bankerWrong: number     // was: convictionWrong
-bankerNet: number       // was: convictionNet
-banker: number          // was: conviction
+isBanker: boolean
+bankerCorrect: number
+bankerWrong: number
+bankerNet: number
+banker: number
 ```
 
 ## UI Text Changes Needed
 
 ### Find and Replace in All Page Files:
-- "Conviction" → "Banker"
-- "conviction" → "banker"
-- "Conv" → "Bnk" (in table headers)
+- "Banker"
+- "banker"
+- "Bnk" (in table headers)
 
 ### Files to Update:
 
@@ -65,10 +65,10 @@ banker: number          // was: conviction
 ### Button/Label Text:
 ```typescript
 // OLD
-"Set as Conviction"
-"Conviction Pick"
-"Your Conviction"
-"Conviction: ✓" or "Conviction: ✗"
+"Set as Banker"
+"Banker Pick"
+"Your Banker"
+"Banker: ✓" or "Banker: ✗"
 
 // NEW
 "Set as Banker"
@@ -80,9 +80,9 @@ banker: number          // was: conviction
 ### Tooltips/Help Text:
 ```typescript
 // OLD
-"Double your points on this match (conviction)"
-"You can only select one conviction per round"
-"Conviction doubles your score - right or wrong!"
+"Double your points on this match (banker)"
+"You can only select one banker per round"
+"Banker doubles your score - right or wrong!"
 
 // NEW
 "Double your points on this match (banker)"
@@ -93,9 +93,9 @@ banker: number          // was: conviction
 ### Table Headers:
 ```typescript
 // OLD
-<TableHead>Conv ✓</TableHead>
-<TableHead>Conv ✗</TableHead>
-<TableHead>Conviction</TableHead>
+<TableHead>Bnk ✓</TableHead>
+<TableHead>Bnk ✗</TableHead>
+<TableHead>Banker</TableHead>
 
 // NEW
 <TableHead>Bnk ✓</TableHead>
@@ -106,8 +106,8 @@ banker: number          // was: conviction
 ### Badges/Indicators:
 ```tsx
 // OLD
-<Badge>Conviction</Badge>
-{prediction.isConviction && <span>⭐</span>}
+<Badge>Banker</Badge>
+{prediction.isBanker && <span>⭐</span>}
 
 // NEW
 <Badge>Banker</Badge>
@@ -117,8 +117,8 @@ banker: number          // was: conviction
 ## API Function Changes (Already Updated in docs)
 ```typescript
 // OLD
-setConviction(matchId, userId)
-is_conviction: boolean
+setBanker(matchId, userId)
+is_banker: boolean
 
 // NEW
 setBanker(matchId, userId)
@@ -128,11 +128,8 @@ is_banker: boolean
 ## Comments in Code
 Update all code comments that mention "conviction" to "banker":
 ```typescript
-// OLD: // Set conviction for this match
-// NEW: // Set banker for this match
-
-// OLD: // Only one conviction allowed per round
-// NEW: // Only one banker allowed per round
+// Set banker for this match
+// Only one banker allowed per round
 ```
 
 ## Scoring Documentation
@@ -153,20 +150,20 @@ After updating all files, test:
 
 ### For VS Code:
 1. Open Find in Files (Ctrl+Shift+F)
-2. Find: `isConviction` → Replace: `isBanker`
-3. Find: `convictionCorrect` → Replace: `bankerCorrect`
-4. Find: `convictionWrong` → Replace: `bankerWrong`
-5. Find: `convictionNet` → Replace: `bankerNet`
-6. Find: `Conviction` → Replace: `Banker`
-7. Find: `conviction` → Replace: `banker`
-8. Find: `Conv ` → Replace: `Bnk ` (with space after)
+2. Find: `isBanker`
+3. Find: `bankerCorrect`
+4. Find: `bankerWrong`
+5. Find: `bankerNet`
+6. Find: `Banker`
+7. Find: `banker`
+8. Find: `Bnk ` (with space after)
 
 ### Files to Check:
 ```bash
-# Find all files that still contain "conviction"
-grep -r "conviction" src/pages/
-grep -r "Conviction" src/pages/
-grep -r "Conv " src/pages/
+# Find all files that still contain "banker"
+grep -r "banker" src/pages/
+grep -r "Banker" src/pages/
+grep -r "Bnk " src/pages/
 ```
 
 ## Priority Order

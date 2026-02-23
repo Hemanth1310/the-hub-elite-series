@@ -1,10 +1,10 @@
-# Banker/Conviction Fix for Standalone Matches
+# Banker Fix for Standalone Matches
 
 **Version:** A87
 **Date:** January 2025
 
 ## Issue
-When in standalone mode, the banker/conviction button should be disabled since standalone matches don't allow banker selection.
+When in standalone mode, the banker button should be disabled since standalone matches don't allow banker selection.
 
 ## Fix Applied
 

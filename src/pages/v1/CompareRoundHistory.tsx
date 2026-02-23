@@ -291,8 +291,8 @@ export default function CompareRoundHistoryV1() {
                   const theirPred = selectedUserId ? predictionMap.get(selectedUserId) : null;
                   const myPick = myPred?.picks[match.id];
                   const theirPick = theirPred?.picks[match.id];
-                  const myConviction = myPred?.banker === match.id;
-                  const theirConviction = theirPred?.banker === match.id;
+                  const myBanker = myPred?.banker === match.id;
+                  const theirBanker = theirPred?.banker === match.id;
                   const myCorrect = myPick === match.result;
                   const theirCorrect = theirPick === match.result;
                   
@@ -323,7 +323,7 @@ export default function CompareRoundHistoryV1() {
                         <div>
                           <div className="text-slate-400 text-xs mb-1">You</div>
                           <div className="flex items-center gap-1">
-                            {!isPostponed && myConviction && <Star className="w-3 h-3 text-blue-400 fill-current" />}
+                            {!isPostponed && myBanker && <Star className="w-3 h-3 text-blue-400 fill-current" />}
                             <span className={`font-semibold ${myCorrect ? 'text-green-400' : 'text-red-400'}`}>
                               {myPick || '—'}
                             </span>
@@ -332,7 +332,7 @@ export default function CompareRoundHistoryV1() {
                         <div>
                           <div className="text-slate-400 text-xs mb-1">{users.find(u => u.id === selectedUserId)?.name}</div>
                           <div className="flex items-center gap-1">
-                            {!isPostponed && theirConviction && <Star className="w-3 h-3 text-blue-400 fill-current" />}
+                            {!isPostponed && theirBanker && <Star className="w-3 h-3 text-blue-400 fill-current" />}
                             <span className={`font-semibold ${theirCorrect ? 'text-green-400' : 'text-red-400'}`}>
                               {theirPick || '—'}
                             </span>
@@ -377,8 +377,8 @@ export default function CompareRoundHistoryV1() {
                       const theirPred = selectedUserId ? predictionMap.get(selectedUserId) : null;
                       const myPick = myPred?.picks[match.id];
                       const theirPick = theirPred?.picks[match.id];
-                      const myConviction = myPred?.banker === match.id;
-                      const theirConviction = theirPred?.banker === match.id;
+                      const myBanker = myPred?.banker === match.id;
+                      const theirBanker = theirPred?.banker === match.id;
                       const myCorrect = myPick === match.result;
                       const theirCorrect = theirPick === match.result;
                       
@@ -404,7 +404,7 @@ export default function CompareRoundHistoryV1() {
                           </TableCell>
                           <TableCell className="text-center">
                             <div className="flex items-center justify-center gap-1">
-                              {!isPostponed && myConviction && <Star className="w-3 h-3 text-blue-400 fill-current" />}
+                              {!isPostponed && myBanker && <Star className="w-3 h-3 text-blue-400 fill-current" />}
                               <span className={`font-semibold ${myCorrect ? 'text-green-400' : 'text-red-400'}`}>
                                 {myPick || '—'}
                               </span>
@@ -412,7 +412,7 @@ export default function CompareRoundHistoryV1() {
                           </TableCell>
                           <TableCell className="text-center">
                             <div className="flex items-center justify-center gap-1">
-                              {!isPostponed && theirConviction && <Star className="w-3 h-3 text-blue-400 fill-current" />}
+                              {!isPostponed && theirBanker && <Star className="w-3 h-3 text-blue-400 fill-current" />}
                               <span className={`font-semibold ${theirCorrect ? 'text-green-400' : 'text-red-400'}`}>
                                 {theirPick || '—'}
                               </span>

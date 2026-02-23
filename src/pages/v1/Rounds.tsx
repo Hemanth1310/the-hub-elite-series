@@ -277,7 +277,7 @@ export default function RoundsV1() {
           <div className="sm:hidden space-y-3">
             {matches.map((match) => {
               const myPick = myPredictionMap[match.id];
-              const isConviction = bankerMatchId === match.id;
+              const isBanker = bankerMatchId === match.id;
               const isCorrect = myPick === match.result;
               
               return (
@@ -306,7 +306,7 @@ export default function RoundsV1() {
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-slate-400">My Pick:</span>
                     <div className="flex items-center gap-2">
-                      {!isPostponed && isConviction && <Star className="w-3 h-3 text-blue-400 fill-current" />}
+                      {!isPostponed && isBanker && <Star className="w-3 h-3 text-blue-400 fill-current" />}
                       <span className={`font-semibold ${isCorrect ? 'text-green-400' : 'text-red-400'}`}>
                         {myPick || '—'}
                       </span>
@@ -330,14 +330,14 @@ export default function RoundsV1() {
                   <TableHead className="text-slate-400 font-semibold text-center w-16">Result</TableHead>
                   <TableHead className="text-slate-400 font-semibold text-center w-20">My Pick</TableHead>
                   {!isPostponed && (
-                    <TableHead className="text-slate-400 font-semibold text-center w-20">Conviction</TableHead>
+                    <TableHead className="text-slate-400 font-semibold text-center w-20">Banker</TableHead>
                   )}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {matches.map((match) => {
                   const myPick = myPredictionMap[match.id];
-                  const isConviction = bankerMatchId === match.id;
+                  const isBanker = bankerMatchId === match.id;
                   const isCorrect = myPick === match.result;
                   
                   return (
@@ -372,8 +372,10 @@ export default function RoundsV1() {
                         </span>
                       </TableCell>
                       {!isPostponed && (
-                        <TableCell className="text-center">
-                          {isConviction && <Star className="w-3 h-3 text-blue-400 fill-current" />}
+                        <TableCell>
+                          <div className="flex items-center justify-center min-h-6">
+                            {isBanker && <Star className="w-3 h-3 text-blue-400 fill-current" />}
+                          </div>
                         </TableCell>
                       )}
                     </TableRow>
