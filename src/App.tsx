@@ -1,5 +1,5 @@
-import { Route, Switch } from 'wouter';
-import { AuthProvider } from '@/contexts/AuthContext';
+import { Route, Switch, Redirect } from 'wouter';
+import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Home from './pages/Home';
 import Login from './pages/Login';
@@ -13,6 +13,35 @@ import AdminRoundV1 from './pages/v1/AdminRound';
 import CompareRoundV1 from './pages/v1/CompareRound';
 import CompareRoundHistoryV1 from './pages/v1/CompareRoundHistory';
 import { Toaster } from '@/components/ui/sonner';
+
+function NotFoundRoute() {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-slate-400">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Redirect to="/login" />;
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center">
+      <div className="text-center">
+        <h1 className="text-4xl font-bold mb-4">404</h1>
+        <p className="text-slate-400 mb-4">Sorry, this page doesn't exist.</p>
+        <a href="/" className="text-blue-400 hover:underline">Go back home</a>
+      </div>
+    </div>
+  );
+}
 
 function App() {
   return (
@@ -74,13 +103,7 @@ function App() {
         </Route>
         
         <Route>
-          <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center">
-            <div className="text-center">
-              <h1 className="text-4xl font-bold mb-4">404</h1>
-              <p className="text-slate-400 mb-4">Sorry, this page doesn't exist.</p>
-              <a href="/" className="text-blue-400 hover:underline">Go back home</a>
-            </div>
-          </div>
+          <NotFoundRoute />
         </Route>
       </Switch>
       <Toaster position="bottom-right" duration={3000} />
