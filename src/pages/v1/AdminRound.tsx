@@ -784,9 +784,9 @@ export default function AdminRoundV1() {
         <div className="space-y-3">
           {matches.filter(m => m.includeInRound).map((match) => (
             <div key={match.id} className={`bg-slate-800 rounded-lg p-4 ${matchOfTheWeek === match.id ? 'ring-2 ring-yellow-500/50 border border-yellow-500/30' : ''}`}>
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
                 <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
+                  <div className="flex flex-wrap items-center gap-2 mb-1">
                     {matchOfTheWeek === match.id && (
                       <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/40 flex items-center gap-1 text-xs font-bold">
                         <Star className="w-3 h-3 fill-current" />
@@ -794,14 +794,18 @@ export default function AdminRoundV1() {
                       </Badge>
                     )}
                     <div className="text-white font-medium">
-                      {match.homeTeam} vs {match.awayTeam}
+                      <span className="sm:hidden">{match.homeShort || match.homeTeam}</span>
+                      <span className="hidden sm:inline">{match.homeTeam}</span>
+                      <span className="mx-1 text-slate-500">vs</span>
+                      <span className="sm:hidden">{match.awayShort || match.awayTeam}</span>
+                      <span className="hidden sm:inline">{match.awayTeam}</span>
                     </div>
                   </div>
                   {status !== 'scheduled' && (
                     <div className="text-slate-400 text-sm">{new Date(match.kickoff).toLocaleString()}</div>
                   )}
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   {status === 'scheduled' && !isPostponed && (
                     <Button
                       size="sm"
@@ -854,7 +858,7 @@ export default function AdminRoundV1() {
                     value={match.kickoff?.split('T')[0] || ''}
                     onChange={(e) => handleMatchUpdate(match.id, 'kickoff', `${e.target.value}T${match.kickoff?.split('T')[1] || '15:00'}`)}
                     disabled={status !== 'scheduled'}
-                    className="bg-slate-800 border-slate-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full bg-slate-800 border-slate-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
                   />
                 </div>
                 <div>
@@ -864,7 +868,7 @@ export default function AdminRoundV1() {
                     value={match.kickoff?.split('T')[1] || ''}
                     onChange={(e) => handleMatchUpdate(match.id, 'kickoff', `${match.kickoff?.split('T')[0] || '2025-02-01'}T${e.target.value}`)}
                     disabled={status !== 'scheduled'}
-                    className="bg-slate-800 border-slate-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full bg-slate-800 border-slate-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
                   />
                 </div>
               </div>
