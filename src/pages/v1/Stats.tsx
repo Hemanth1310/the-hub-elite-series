@@ -9,6 +9,7 @@ type RoundEntry = {
   rank: number;
   userName: string;
   roundNumber: number;
+  roundType: 'regular' | 'standalone' | null;
   points: number;
   correct: number;
   bankerCorrect: boolean | null;
@@ -43,7 +44,7 @@ export default function StatsV1() {
 
       const { data } = await supabase
         .from('round_stats')
-        .select('total_points,correct_predictions,banker_correct, round:round_id(round_number,competition_id), user:user_id(name)')
+        .select('total_points,correct_predictions,banker_correct, round:round_id(round_number,round_type,competition_id), user:user_id(name)')
         .eq('round.competition_id', activeCompetition.id);
 
       const mapped = (data || []).map((row: any) => {
@@ -53,6 +54,7 @@ export default function StatsV1() {
           rank: 0,
           userName: user?.name || 'Player',
           roundNumber: round?.round_number || 0,
+          roundType: round?.round_type || null,
           points: row.total_points || 0,
           correct: row.correct_predictions || 0,
           bankerCorrect: row.banker_correct ?? null,
@@ -137,10 +139,18 @@ export default function StatsV1() {
                   </Badge>
                 </div>
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-slate-400">Round {entry.roundNumber}</span>
+                  <span className="text-slate-400">
+                    {entry.roundType === 'standalone' ? `Postponed Set ${entry.roundNumber}` : `Round ${entry.roundNumber}`}
+                  </span>
                   <div className="flex items-center gap-3">
                     <span className="text-slate-400">{entry.correct} correct</span>
-                    <span className="text-green-400 text-lg">{entry.bankerCorrect ? '✓' : '—'}</span>
+                    {entry.bankerCorrect === true ? (
+                      <span className="text-green-400 text-lg">✓</span>
+                    ) : entry.bankerCorrect === false ? (
+                      <span className="text-red-400 text-lg">✗</span>
+                    ) : (
+                      <span className="text-slate-500 text-lg">—</span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -172,11 +182,19 @@ export default function StatsV1() {
                       </div>
                     </td>
                     <td className="text-white font-medium py-3">{entry.userName}</td>
-                    <td className="text-slate-300 py-3">Round {entry.roundNumber}</td>
+                    <td className="text-slate-300 py-3">
+                      {entry.roundType === 'standalone' ? `Postponed Set ${entry.roundNumber}` : `Round ${entry.roundNumber}`}
+                    </td>
                     <td className="text-right font-bold text-green-400 py-3">{entry.points}</td>
                     <td className="text-right text-slate-300 py-3">{entry.correct}</td>
                     <td className="text-center py-3">
-                      <span className="text-green-400 text-xl">{entry.bankerCorrect ? '✓' : '—'}</span>
+                      {entry.bankerCorrect === true ? (
+                        <span className="text-green-400 text-xl">✓</span>
+                      ) : entry.bankerCorrect === false ? (
+                        <span className="text-red-400 text-xl">✗</span>
+                      ) : (
+                        <span className="text-slate-500 text-xl">—</span>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -214,10 +232,18 @@ export default function StatsV1() {
                   </Badge>
                 </div>
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-slate-400">Round {entry.roundNumber}</span>
+                  <span className="text-slate-400">
+                    {entry.roundType === 'standalone' ? `Postponed Set ${entry.roundNumber}` : `Round ${entry.roundNumber}`}
+                  </span>
                   <div className="flex items-center gap-3">
                     <span className="text-slate-400">{entry.correct} correct</span>
-                    <span className="text-red-400 text-lg">{entry.bankerCorrect === false ? '✗' : '—'}</span>
+                    {entry.bankerCorrect === true ? (
+                      <span className="text-green-400 text-lg">✓</span>
+                    ) : entry.bankerCorrect === false ? (
+                      <span className="text-red-400 text-lg">✗</span>
+                    ) : (
+                      <span className="text-slate-500 text-lg">—</span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -244,11 +270,19 @@ export default function StatsV1() {
                       <span className="font-bold text-slate-400">#{entry.rank}</span>
                     </td>
                     <td className="text-white font-medium py-3">{entry.userName}</td>
-                    <td className="text-slate-300 py-3">Round {entry.roundNumber}</td>
+                    <td className="text-slate-300 py-3">
+                      {entry.roundType === 'standalone' ? `Postponed Set ${entry.roundNumber}` : `Round ${entry.roundNumber}`}
+                    </td>
                     <td className="text-right font-bold text-red-400 py-3">{entry.points}</td>
                     <td className="text-right text-slate-300 py-3">{entry.correct}</td>
                     <td className="text-center py-3">
-                      <span className="text-red-400 text-xl">{entry.bankerCorrect === false ? '✗' : '—'}</span>
+                      {entry.bankerCorrect === true ? (
+                        <span className="text-green-400 text-xl">✓</span>
+                      ) : entry.bankerCorrect === false ? (
+                        <span className="text-red-400 text-xl">✗</span>
+                      ) : (
+                        <span className="text-slate-500 text-xl">—</span>
+                      )}
                     </td>
                   </tr>
                 ))}
