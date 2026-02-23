@@ -183,6 +183,7 @@ export default function LeaderboardV1() {
                           </Badge>
                         )}
                       </div>
+                      <div className="text-xs text-slate-500 sm:hidden">Wins: {entry.roundWins}</div>
                     </TableCell>
                     <TableCell className="text-right font-bold text-white">{entry.totalPoints}</TableCell>
                     <TableCell className="text-right text-slate-300 hidden sm:table-cell">{entry.matchesPlayed}</TableCell>
