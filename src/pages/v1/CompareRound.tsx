@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Skeleton } from '@/components/ui/skeleton';
 import { ChevronLeft, Star } from 'lucide-react';
 import { MatchResult } from '@/types';
 import LayoutV1 from './Layout';
@@ -212,11 +213,21 @@ export default function CompareRoundV1() {
       </div>
 
       {loading && (
-        <div className="min-h-50 flex items-center justify-center">
-          <div className="text-center">
-            <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-            <p className="text-slate-400">Loading comparisons...</p>
-          </div>
+        <div className="space-y-4">
+          <Card className="bg-slate-900 border-slate-800 p-4 sm:p-6">
+            <div className="space-y-3">
+              <Skeleton className="h-5 w-36" />
+              <Skeleton className="h-10 w-full sm:w-70" />
+            </div>
+          </Card>
+          <Card className="bg-slate-900 border-slate-800 p-4 sm:p-6">
+            <Skeleton className="h-5 w-44 mb-4" />
+            <div className="space-y-3">
+              {Array.from({ length: 6 }).map((_, idx) => (
+                <Skeleton key={`compare-row-skel-${idx}`} className="h-10 w-full" />
+              ))}
+            </div>
+          </Card>
         </div>
       )}
 

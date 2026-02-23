@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Tooltip,
   TooltipContent,
@@ -286,11 +287,28 @@ export default function ThisRoundV1() {
   if (loading) {
     return (
       <LayoutV1>
-        <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-          <div className="text-center">
-            <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-slate-400">Loading round...</p>
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="space-y-2">
+              <Skeleton className="h-7 w-40" />
+              <Skeleton className="h-4 w-32" />
+            </div>
+            <Skeleton className="h-8 w-28" />
           </div>
+          <Card className="bg-slate-900 border-slate-800">
+            <div className="p-4 border-b border-slate-800">
+              <Skeleton className="h-5 w-32" />
+            </div>
+            <div className="divide-y divide-slate-800">
+              {Array.from({ length: 6 }).map((_, index) => (
+                <div key={index} className="p-4 space-y-3">
+                  <Skeleton className="h-4 w-48" />
+                  <Skeleton className="h-3 w-32" />
+                  <Skeleton className="h-8 w-full" />
+                </div>
+              ))}
+            </div>
+          </Card>
         </div>
       </LayoutV1>
     );

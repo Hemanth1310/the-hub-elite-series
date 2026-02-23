@@ -12,6 +12,7 @@ export default function LayoutV1({ children }: { children: React.ReactNode }) {
   const { user, signOut } = useAuth();
   const [competitions, setCompetitions] = useState<any[]>([]);
   const [selectedCompetition, setSelectedCompetition] = useState('');
+  const [showProgress, setShowProgress] = useState(false);
 
   useEffect(() => {
     const fetchCompetitions = async () => {
@@ -30,6 +31,12 @@ export default function LayoutV1({ children }: { children: React.ReactNode }) {
 
     fetchCompetitions();
   }, []);
+
+  useEffect(() => {
+    setShowProgress(true);
+    const timeout = window.setTimeout(() => setShowProgress(false), 700);
+    return () => window.clearTimeout(timeout);
+  }, [location]);
 
   const handleCompetitionChange = async (competitionId: string) => {
     setSelectedCompetition(competitionId);
@@ -115,6 +122,10 @@ export default function LayoutV1({ children }: { children: React.ReactNode }) {
           </div>
         </nav>
       </header>
+
+      {showProgress && (
+        <div className="h-0.5 w-full bg-gradient-to-r from-blue-500 via-blue-300 to-blue-500 animate-pulse" />
+      )}
 
       {/* Main Content */}
       <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 md:py-8">

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Skeleton } from '@/components/ui/skeleton';
 import { ChevronLeft, Star, Users } from 'lucide-react';
 import { useRoute, Link } from 'wouter';
 import LayoutV1 from './Layout';
@@ -215,10 +216,30 @@ export default function CompareRoundHistoryV1() {
       </div>
 
       {loading && (
-        <div className="min-h-50 flex items-center justify-center">
-          <div className="text-center">
-            <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-            <p className="text-slate-400">Loading round...</p>
+        <div className="flex flex-col lg:flex-row gap-6">
+          <div className="lg:w-64 shrink-0">
+            <Skeleton className="h-4 w-28 mb-3" />
+            <div className="lg:hidden flex gap-2 overflow-x-auto pb-2">
+              {Array.from({ length: 4 }).map((_, idx) => (
+                <Skeleton key={`history-mobile-user-skel-${idx}`} className="h-14 w-28 shrink-0 rounded-lg" />
+              ))}
+            </div>
+            <div className="hidden lg:block space-y-2">
+              {Array.from({ length: 6 }).map((_, idx) => (
+                <Skeleton key={`history-desktop-user-skel-${idx}`} className="h-12 w-full rounded-lg" />
+              ))}
+            </div>
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 sm:p-6">
+              <Skeleton className="h-5 w-48 mb-4" />
+              <div className="space-y-3">
+                {Array.from({ length: 6 }).map((_, idx) => (
+                  <Skeleton key={`history-row-skel-${idx}`} className="h-10 w-full" />
+                ))}
+                <Skeleton className="h-12 w-full" />
+              </div>
+            </div>
           </div>
         </div>
       )}

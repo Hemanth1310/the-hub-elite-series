@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Trophy } from 'lucide-react';
 import LayoutV1 from './Layout';
 import { supabase } from '@/lib/supabase';
@@ -121,10 +122,19 @@ export default function LeaderboardV1() {
       </div>
 
       {loading && (
-        <div className="min-h-50 flex items-center justify-center">
-          <div className="text-center">
-            <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-            <p className="text-slate-400">Loading leaderboard...</p>
+        <div className="bg-slate-900 rounded-lg border border-slate-800 p-6 space-y-4">
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-3 w-48" />
+          </div>
+          <div className="space-y-3">
+            {Array.from({ length: 6 }).map((_, index) => (
+              <div key={index} className="flex items-center justify-between gap-3">
+                <Skeleton className="h-5 w-16" />
+                <Skeleton className="h-5 w-40" />
+                <Skeleton className="h-5 w-12" />
+              </div>
+            ))}
           </div>
         </div>
       )}

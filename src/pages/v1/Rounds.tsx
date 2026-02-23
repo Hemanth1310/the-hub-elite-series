@@ -3,6 +3,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Trophy, Calendar, ChevronLeft, Star, Users } from 'lucide-react';
 import { Link } from 'wouter';
 import LayoutV1 from './Layout';
@@ -267,12 +268,14 @@ export default function RoundsV1() {
         </div>
 
         {roundLoading && (
-          <div className="min-h-50 flex items-center justify-center">
-            <div className="text-center">
-              <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-              <p className="text-slate-400">Loading round...</p>
+          <Card className="bg-slate-900 border-slate-800 p-4 sm:p-6 mb-8">
+            <div className="space-y-3">
+              <Skeleton className="h-5 w-40" />
+              <Skeleton className="h-4 w-56" />
+              <Skeleton className="h-4 w-48" />
+              <Skeleton className="h-28 w-full" />
             </div>
-          </div>
+          </Card>
         )}
 
         {/* My Performance - At Top */}
@@ -449,10 +452,16 @@ export default function RoundsV1() {
       </div>
 
       {loading && (
-        <div className="min-h-50 flex items-center justify-center">
-          <div className="text-center">
-            <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-            <p className="text-slate-400">Loading rounds...</p>
+        <div className="bg-slate-900 rounded-lg border border-slate-800 p-6 space-y-4">
+          <Skeleton className="h-5 w-36" />
+          <div className="space-y-3">
+            {Array.from({ length: 6 }).map((_, index) => (
+              <div key={index} className="flex items-center justify-between gap-3">
+                <Skeleton className="h-5 w-24" />
+                <Skeleton className="h-5 w-32" />
+                <Skeleton className="h-5 w-16" />
+              </div>
+            ))}
           </div>
         </div>
       )}

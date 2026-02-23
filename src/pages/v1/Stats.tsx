@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import { TrendingUp, TrendingDown, Award } from 'lucide-react';
 import LayoutV1 from './Layout';
 import { supabase } from '@/lib/supabase';
@@ -90,11 +91,21 @@ export default function StatsV1() {
       </div>
 
       {loading && (
-        <div className="min-h-50 flex items-center justify-center">
-          <div className="text-center">
-            <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-            <p className="text-slate-400">Loading stats...</p>
-          </div>
+        <div className="grid gap-6 sm:gap-8">
+          <Card className="bg-slate-900 border-slate-800 p-4 sm:p-6 space-y-4">
+            <Skeleton className="h-5 w-40" />
+            <Skeleton className="h-4 w-56" />
+            {Array.from({ length: 4 }).map((_, index) => (
+              <Skeleton key={index} className="h-10 w-full" />
+            ))}
+          </Card>
+          <Card className="bg-slate-900 border-slate-800 p-4 sm:p-6 space-y-4">
+            <Skeleton className="h-5 w-40" />
+            <Skeleton className="h-4 w-56" />
+            {Array.from({ length: 4 }).map((_, index) => (
+              <Skeleton key={index} className="h-10 w-full" />
+            ))}
+          </Card>
         </div>
       )}
 

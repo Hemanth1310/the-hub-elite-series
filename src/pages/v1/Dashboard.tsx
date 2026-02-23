@@ -1,6 +1,7 @@
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Clock, TrendingUp, TrendingDown, CheckCircle, XCircle, Target, BarChart3 } from 'lucide-react';
 import { Link } from 'wouter';
 import LayoutV1 from './Layout';
@@ -243,14 +244,38 @@ export default function DashboardV1() {
   return (
     <LayoutV1>
       {loading && (
-        <div className="min-h-50 flex items-center justify-center mb-6">
-          <div className="text-center">
-            <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-            <p className="text-slate-400">Loading dashboard...</p>
+        <div className="space-y-4 mb-6">
+          <div className="grid sm:grid-cols-2 gap-4">
+            <Card className="bg-slate-900 border-slate-800 p-4 space-y-3">
+              <Skeleton className="h-3 w-24" />
+              <Skeleton className="h-7 w-32" />
+              <Skeleton className="h-8 w-40" />
+            </Card>
+            <Card className="bg-slate-900 border-slate-800 p-4 space-y-3">
+              <Skeleton className="h-3 w-32" />
+              <Skeleton className="h-10 w-24" />
+              <Skeleton className="h-6 w-32" />
+            </Card>
+          </div>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <Card className="bg-slate-900 border-slate-800 p-4 space-y-3">
+              <Skeleton className="h-4 w-40" />
+              <Skeleton className="h-8 w-20" />
+              <Skeleton className="h-4 w-48" />
+            </Card>
+            <Card className="bg-slate-900 border-slate-800 p-4 space-y-3">
+              <Skeleton className="h-4 w-32" />
+              <div className="grid grid-cols-2 gap-3">
+                <Skeleton className="h-8 w-full" />
+                <Skeleton className="h-8 w-full" />
+              </div>
+            </Card>
           </div>
         </div>
       )}
 
+      {!loading && (
+        <>
       {/* Top Row - Current Round & Position */}
       <div className="grid sm:grid-cols-2 gap-4 mb-4">
         {/* Current Round Status - NOW FIRST */}
@@ -447,6 +472,8 @@ export default function DashboardV1() {
           </div>
         </Card>
       </div>
+      </>
+      )}
     </LayoutV1>
   );
 }
