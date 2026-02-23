@@ -580,8 +580,8 @@ export default function ThisRoundV1() {
                 </h3>
               <p className="text-sm mb-2">Basic points for regular matches:</p>
                <ul className="text-sm space-y-1 ml-4">
-                  <li>✓ Correct banker = <span className="text-green-400 font-semibold">3 points</span></li>
-                  <li>✗ Wrong banker = <span className="text-red-400 font-semibold">0 points</span> (penalty)</li>
+                  <li>✓ Correct Prediction = <span className="text-green-400 font-semibold">3 points</span></li>
+                  <li>✗ Wrong Prediction = 0 points (no penalty)</li>
                 </ul>
               
             </div>
