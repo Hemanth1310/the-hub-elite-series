@@ -187,6 +187,13 @@ export default function CompareRoundHistoryV1() {
 
   const pointMap = useMemo(() => new Map(points.map((row) => [row.userId, row.points])), [points]);
   const isPostponed = roundType === 'standalone';
+  const getPointsForMatch = (isCorrect: boolean, isBanker: boolean, isMOTW: boolean) => {
+    if (isPostponed) return isCorrect ? 3 : 0;
+    if (isBanker && isMOTW) return isCorrect ? 12 : -6;
+    if (isBanker) return isCorrect ? 6 : -3;
+    if (isMOTW) return isCorrect ? 6 : 0;
+    return isCorrect ? 3 : 0;
+  };
 
   return (
     <LayoutV1>
@@ -295,6 +302,8 @@ export default function CompareRoundHistoryV1() {
                   const theirBanker = theirPred?.banker === match.id;
                   const myCorrect = myPick === match.result;
                   const theirCorrect = theirPick === match.result;
+                  const myPoints = match.result ? getPointsForMatch(myCorrect, !!myBanker, match.isMatchOfTheWeek) : null;
+                  const theirPoints = match.result ? getPointsForMatch(theirCorrect, !!theirBanker, match.isMatchOfTheWeek) : null;
                   
                   return (
                     <div key={match.id} className={`bg-slate-800/50 rounded-lg p-4 mb-4 ${!isPostponed && match.isMatchOfTheWeek ? 'ring-2 ring-yellow-500/50' : ''}`}>
@@ -327,6 +336,11 @@ export default function CompareRoundHistoryV1() {
                             <span className={`font-semibold ${myCorrect ? 'text-green-400' : 'text-red-400'}`}>
                               {myPick || '—'}
                             </span>
+                            {myPoints !== null && (
+                              <span className={`text-xs font-semibold ${myPoints > 0 ? 'text-green-400' : myPoints < 0 ? 'text-red-400' : 'text-slate-500'}`}>
+                                {myPoints > 0 ? `+${myPoints}` : myPoints}
+                              </span>
+                            )}
                           </div>
                         </div>
                         <div>
@@ -336,6 +350,11 @@ export default function CompareRoundHistoryV1() {
                             <span className={`font-semibold ${theirCorrect ? 'text-green-400' : 'text-red-400'}`}>
                               {theirPick || '—'}
                             </span>
+                            {theirPoints !== null && (
+                              <span className={`text-xs font-semibold ${theirPoints > 0 ? 'text-green-400' : theirPoints < 0 ? 'text-red-400' : 'text-slate-500'}`}>
+                                {theirPoints > 0 ? `+${theirPoints}` : theirPoints}
+                              </span>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -381,6 +400,8 @@ export default function CompareRoundHistoryV1() {
                       const theirBanker = theirPred?.banker === match.id;
                       const myCorrect = myPick === match.result;
                       const theirCorrect = theirPick === match.result;
+                      const myPoints = match.result ? getPointsForMatch(myCorrect, !!myBanker, match.isMatchOfTheWeek) : null;
+                      const theirPoints = match.result ? getPointsForMatch(theirCorrect, !!theirBanker, match.isMatchOfTheWeek) : null;
                       
                       return (
                         <TableRow key={match.id} className="border-slate-800 hover:bg-slate-800/50">
@@ -408,6 +429,11 @@ export default function CompareRoundHistoryV1() {
                               <span className={`font-semibold ${myCorrect ? 'text-green-400' : 'text-red-400'}`}>
                                 {myPick || '—'}
                               </span>
+                              {myPoints !== null && (
+                                <span className={`text-xs font-semibold ${myPoints > 0 ? 'text-green-400' : myPoints < 0 ? 'text-red-400' : 'text-slate-500'}`}>
+                                  {myPoints > 0 ? `+${myPoints}` : myPoints}
+                                </span>
+                              )}
                             </div>
                           </TableCell>
                           <TableCell className="text-center">
@@ -416,6 +442,11 @@ export default function CompareRoundHistoryV1() {
                               <span className={`font-semibold ${theirCorrect ? 'text-green-400' : 'text-red-400'}`}>
                                 {theirPick || '—'}
                               </span>
+                              {theirPoints !== null && (
+                                <span className={`text-xs font-semibold ${theirPoints > 0 ? 'text-green-400' : theirPoints < 0 ? 'text-red-400' : 'text-slate-500'}`}>
+                                  {theirPoints > 0 ? `+${theirPoints}` : theirPoints}
+                                </span>
+                              )}
                             </div>
                           </TableCell>
                         </TableRow>

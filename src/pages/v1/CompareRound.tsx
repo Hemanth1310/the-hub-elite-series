@@ -165,6 +165,13 @@ export default function CompareRoundV1() {
   }));
 
   const isPostponed = round?.roundType === 'standalone';
+  const getPointsForMatch = (isCorrect: boolean, isBanker: boolean, isMOTW: boolean) => {
+    if (isPostponed) return isCorrect ? 3 : 0;
+    if (isBanker && isMOTW) return isCorrect ? 12 : -6;
+    if (isBanker) return isCorrect ? 6 : -3;
+    if (isMOTW) return isCorrect ? 6 : 0;
+    return isCorrect ? 3 : 0;
+  };
 
   const predictionMap = useMemo(() => {
     const map = new Map<string, { picks: Record<string, MatchResult>; banker: string | null }>();
@@ -249,6 +256,8 @@ export default function CompareRoundV1() {
           const theirBanker = otherData?.banker === match.id;
           const myCorrect = isFinal && match.result && myPick === match.result;
           const theirCorrect = isFinal && match.result && theirPick === match.result;
+          const myPoints = isFinal && match.result ? getPointsForMatch(!!myCorrect, !!myBanker, match.isMatchOfTheWeek) : null;
+          const theirPoints = isFinal && match.result ? getPointsForMatch(!!theirCorrect, !!theirBanker, match.isMatchOfTheWeek) : null;
 
           return (
             <Card key={match.id} className="bg-slate-900 border-slate-800 p-3">
@@ -291,6 +300,11 @@ export default function CompareRoundV1() {
                     >
                       {myPick || '—'}
                     </Badge>
+                    {myPoints !== null && (
+                      <div className={`text-xs font-semibold mt-1 ${myPoints > 0 ? 'text-green-400' : myPoints < 0 ? 'text-red-400' : 'text-slate-500'}`}>
+                        {myPoints > 0 ? `+${myPoints}` : myPoints}
+                      </div>
+                    )}
                   </div>
 
                   {/* Their Pick */}
@@ -310,6 +324,11 @@ export default function CompareRoundV1() {
                     >
                       {theirPick || '—'}
                     </Badge>
+                    {theirPoints !== null && (
+                      <div className={`text-xs font-semibold mt-1 ${theirPoints > 0 ? 'text-green-400' : theirPoints < 0 ? 'text-red-400' : 'text-slate-500'}`}>
+                        {theirPoints > 0 ? `+${theirPoints}` : theirPoints}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -351,6 +370,8 @@ export default function CompareRoundV1() {
                 const theirBanker = otherData?.banker === match.id;
                 const myCorrect = isFinal && match.result && myPick === match.result;
                 const theirCorrect = isFinal && match.result && theirPick === match.result;
+                const myPoints = isFinal && match.result ? getPointsForMatch(!!myCorrect, !!myBanker, match.isMatchOfTheWeek) : null;
+                const theirPoints = isFinal && match.result ? getPointsForMatch(!!theirCorrect, !!theirBanker, match.isMatchOfTheWeek) : null;
 
                 return (
                   <TableRow key={match.id} className="border-slate-800 hover:bg-slate-800/50">
@@ -381,6 +402,11 @@ export default function CompareRoundV1() {
                         >
                           {myPick || '—'}
                         </span>
+                        {myPoints !== null && (
+                          <span className={`text-xs font-semibold ${myPoints > 0 ? 'text-green-400' : myPoints < 0 ? 'text-red-400' : 'text-slate-500'}`}>
+                            {myPoints > 0 ? `+${myPoints}` : myPoints}
+                          </span>
+                        )}
                       </div>
                     </TableCell>
                     {isFinal && match.result && (
@@ -404,6 +430,11 @@ export default function CompareRoundV1() {
                         >
                           {theirPick || '—'}
                         </span>
+                        {theirPoints !== null && (
+                          <span className={`text-xs font-semibold ${theirPoints > 0 ? 'text-green-400' : theirPoints < 0 ? 'text-red-400' : 'text-slate-500'}`}>
+                            {theirPoints > 0 ? `+${theirPoints}` : theirPoints}
+                          </span>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>

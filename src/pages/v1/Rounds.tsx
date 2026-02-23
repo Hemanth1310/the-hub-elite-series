@@ -226,6 +226,13 @@ export default function RoundsV1() {
     );
     const bankerMatchId = myPredictions.find((row) => row.isBanker)?.matchId || null;
     const myRank = roundStats?.myRank || null;
+    const getPointsForMatch = (isCorrect: boolean, isBanker: boolean, isMOTW: boolean) => {
+      if (isPostponed) return isCorrect ? 3 : 0;
+      if (isBanker && isMOTW) return isCorrect ? 12 : -6;
+      if (isBanker) return isCorrect ? 6 : -3;
+      if (isMOTW) return isCorrect ? 6 : 0;
+      return isCorrect ? 3 : 0;
+    };
 
     return (
       <LayoutV1>
@@ -279,6 +286,7 @@ export default function RoundsV1() {
               const myPick = myPredictionMap[match.id];
               const isBanker = bankerMatchId === match.id;
               const isCorrect = myPick === match.result;
+              const points = match.result ? getPointsForMatch(isCorrect, isBanker, match.isMatchOfTheWeek) : null;
               
               return (
                 <div key={match.id} className={`bg-slate-800/50 rounded-lg p-4 space-y-2 ${!isPostponed && match.isMatchOfTheWeek ? 'ring-2 ring-yellow-500/50' : ''}`}>
@@ -310,6 +318,11 @@ export default function RoundsV1() {
                       <span className={`font-semibold ${isCorrect ? 'text-green-400' : 'text-red-400'}`}>
                         {myPick || '—'}
                       </span>
+                      {points !== null && (
+                        <span className={`text-xs font-semibold ${points > 0 ? 'text-green-400' : points < 0 ? 'text-red-400' : 'text-slate-500'}`}>
+                          {points > 0 ? `+${points}` : points}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -339,6 +352,7 @@ export default function RoundsV1() {
                   const myPick = myPredictionMap[match.id];
                   const isBanker = bankerMatchId === match.id;
                   const isCorrect = myPick === match.result;
+                  const points = match.result ? getPointsForMatch(isCorrect, isBanker, match.isMatchOfTheWeek) : null;
                   
                   return (
                     <TableRow key={match.id} className="border-slate-800 hover:bg-slate-800/50">
@@ -367,9 +381,16 @@ export default function RoundsV1() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-center">
-                        <span className={`font-semibold ${isCorrect ? 'text-green-400' : 'text-red-400'}`}>
-                          {myPick || '—'}
-                        </span>
+                        <div className="flex items-center justify-center gap-2">
+                          <span className={`font-semibold ${isCorrect ? 'text-green-400' : 'text-red-400'}`}>
+                            {myPick || '—'}
+                          </span>
+                          {points !== null && (
+                            <span className={`text-xs font-semibold ${points > 0 ? 'text-green-400' : points < 0 ? 'text-red-400' : 'text-slate-500'}`}>
+                              {points > 0 ? `+${points}` : points}
+                            </span>
+                          )}
+                        </div>
                       </TableCell>
                       {!isPostponed && (
                         <TableCell>
