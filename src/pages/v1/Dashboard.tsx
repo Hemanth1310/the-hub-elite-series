@@ -134,11 +134,35 @@ export default function DashboardV1() {
         setUserPosition(leaderboardRow.current_rank || null);
         setUserPoints(leaderboardRow.total_points || 0);
         setTotalPoints(leaderboardRow.total_points || 0);
-        const roundsPlayed = leaderboardRow.rounds_played || 0;
-        setPredictionAccuracy(roundsPlayed > 0 ? Math.round((leaderboardRow.correct_predictions || 0) / roundsPlayed) : 0);
         const bankerTotal = (leaderboardRow.banker_success || 0) + (leaderboardRow.banker_fail || 0);
         setBankerSuccessRate(bankerTotal > 0 ? Math.round(((leaderboardRow.banker_success || 0) / bankerTotal) * 100) : 0);
       }
+
+      const { data: predictionRows } = await supabase
+        .from('predictions')
+        .select('prediction,match:match_id(result,include_in_round,round:round_id(competition_id))')
+        .eq('user_id', user.id);
+
+      const unwrapRow = <T,>(value: T | T[] | null | undefined) =>
+        Array.isArray(value) ? value[0] : value;
+
+      const relevantPredictions = (predictionRows || []).filter((row: any) => {
+        const match = unwrapRow(row.match);
+        const round = unwrapRow(match?.round);
+        return (
+          round?.competition_id === activeCompetition.id &&
+          match?.include_in_round === true &&
+          match?.result
+        );
+      });
+
+      const correctCount = relevantPredictions.filter((row: any) => {
+        const match = unwrapRow(row.match);
+        return row.prediction === match?.result;
+      }).length;
+
+      const totalCount = relevantPredictions.length;
+      setPredictionAccuracy(totalCount > 0 ? Math.round((correctCount / totalCount) * 100) : 0);
 
       const { data: lastRound } = await supabase
         .from('rounds')
@@ -160,6 +184,23 @@ export default function DashboardV1() {
 
         setLastRoundPoints(statRow?.total_points ?? null);
         setLastRoundPositionChange(statRow?.rank ?? null);
+
+        const { data: bankerRow } = await supabase
+          .from('predictions')
+          .select('prediction,match:match_id(result,include_in_round)')
+          .eq('round_id', lastRound.id)
+          .eq('user_id', user.id)
+          .eq('is_banker', true)
+          .maybeSingle();
+
+        const match = unwrapRow(bankerRow?.match);
+        if (!bankerRow || !match?.result || match?.include_in_round !== true) {
+          setLastRoundBankerSuccess(null);
+        } else {
+          setLastRoundBankerSuccess(bankerRow.prediction === match.result);
+        }
+      } else {
+        setLastRoundBankerSuccess(null);
       }
 
       setLoading(false);
