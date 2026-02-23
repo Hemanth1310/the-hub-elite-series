@@ -574,6 +574,16 @@ export default function ThisRoundV1() {
                 <li><span className="font-semibold text-blue-400">U</span> = Draw (tie)</li>
                 <li><span className="font-semibold text-blue-400">B</span> = Away team wins</li>
               </ul>
+              <h3 className="font-semibold text-white mb-2 flex items-center gap-2 mt-2">
+                <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
+                Scoring
+                </h3>
+              <p className="text-sm mb-2">Basic points for regular matches:</p>
+               <ul className="text-sm space-y-1 ml-4">
+                  <li>✓ Correct banker = <span className="text-green-400 font-semibold">3 points</span></li>
+                  <li>✗ Wrong banker = <span className="text-red-400 font-semibold">0 points</span> (penalty)</li>
+                </ul>
+              
             </div>
             {roundType === 'round' && (
               <div>
