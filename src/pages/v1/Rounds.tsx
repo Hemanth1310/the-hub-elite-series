@@ -484,20 +484,52 @@ export default function RoundsV1() {
               setSelectedRoundNumber(round.roundNumber);
             }}
           >
-            <div className="grid gap-3 sm:gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,3fr)_minmax(0,100px)_auto] sm:items-center">
-              <div className='flex gap-4'>
-              <div className="w-11 h-11 sm:w-12 sm:h-12 bg-blue-500/10 rounded-xl flex items-center justify-center shrink-0">
-                <span className="text-blue-400 font-bold text-base sm:text-lg">{round.roundNumber}</span>
-              </div>
-              <div className="min-w-0">
-                <div className="text-white font-semibold truncate">
-                  {round.roundType === 'standalone' ? `Postponed Set ${round.roundNumber}` : `Round ${round.roundNumber}`}
+            {/* Mobile layout */}
+            <div className="sm:hidden flex flex-col gap-4">
+              <div className="flex items-start gap-4">
+                <div className="w-11 h-11 bg-blue-500/10 rounded-xl flex items-center justify-center shrink-0">
+                  <span className="text-blue-400 font-bold text-base">{round.roundNumber}</span>
                 </div>
-                <div className="flex items-center gap-2 text-xs sm:text-sm text-slate-400 mt-1">
-                  <Calendar className="w-4 h-4" />
-                  <span className="truncate">{round.date}</span>
+                <div className="min-w-0">
+                  <div className="text-white font-semibold truncate">
+                    {round.roundType === 'standalone' ? `Postponed Set ${round.roundNumber}` : `Round ${round.roundNumber}`}
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-slate-400 mt-1">
+                    <Calendar className="w-4 h-4" />
+                    <span className="truncate">{round.date}</span>
+                  </div>
                 </div>
               </div>
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <div className="text-xs text-slate-400 mb-1">Winner</div>
+                  <div className="flex items-center gap-2">
+                    <Trophy className="w-4 h-4 text-yellow-400" />
+                    <span className="text-white font-medium">{round.winner}</span>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-xs text-slate-400 mb-1">Average</div>
+                  <div className="text-white font-bold text-lg">{round.averageScore.toFixed(1)}</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Desktop layout */}
+            <div className="hidden sm:grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,3fr)_minmax(0,160px)_minmax(0,120px)_auto] sm:items-center">
+              <div className="flex gap-4">
+                <div className="w-12 h-12 bg-blue-500/10 rounded-xl flex items-center justify-center shrink-0">
+                  <span className="text-blue-400 font-bold text-lg">{round.roundNumber}</span>
+                </div>
+                <div className="min-w-0">
+                  <div className="text-white font-semibold truncate">
+                    {round.roundType === 'standalone' ? `Postponed Set ${round.roundNumber}` : `Round ${round.roundNumber}`}
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-slate-400 mt-1">
+                    <Calendar className="w-4 h-4" />
+                    <span className="truncate">{round.date}</span>
+                  </div>
+                </div>
               </div>
               <div className="flex items-center gap-2 min-w-0">
                 <Trophy className="w-4 h-4 text-yellow-400" />
@@ -507,7 +539,7 @@ export default function RoundsV1() {
                 <span className="text-xs">Avg:</span>
                 <span className="text-white font-bold text-lg">{round.averageScore.toFixed(1)}</span>
               </div>
-              <Badge variant="outline" className="border-blue-500/30 text-blue-400 text-xs justify-self-start sm:justify-self-end">
+              <Badge variant="outline" className="border-blue-500/30 text-blue-400 text-xs justify-self-end">
                 View Details
               </Badge>
             </div>
