@@ -478,48 +478,38 @@ export default function RoundsV1() {
         {rounds.map(round => (
           <Card
             key={round.id}
-            className="bg-slate-900 border-slate-800 p-4 sm:p-6 hover:border-blue-500 transition-colors cursor-pointer"
+            className="bg-slate-900 border-slate-800 px-5 py-4 sm:px-7 sm:py-5 hover:border-blue-500/50 transition-colors cursor-pointer"
             onClick={() => {
               setSelectedRoundId(round.id);
               setSelectedRoundNumber(round.roundNumber);
             }}
           >
-            <div className="flex flex-col gap-4">
-              {/* Top section - Round info */}
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-blue-500/10 rounded-lg flex items-center justify-center shrink-0">
-                  <span className="text-blue-400 font-bold text-lg">{round.roundNumber}</span>
+            <div className="grid gap-3 sm:gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,3fr)_minmax(0,100px)_auto] sm:items-center">
+              <div className='flex gap-4'>
+              <div className="w-11 h-11 sm:w-12 sm:h-12 bg-blue-500/10 rounded-xl flex items-center justify-center shrink-0">
+                <span className="text-blue-400 font-bold text-base sm:text-lg">{round.roundNumber}</span>
+              </div>
+              <div className="min-w-0">
+                <div className="text-white font-semibold truncate">
+                  {round.roundType === 'standalone' ? `Postponed Set ${round.roundNumber}` : `Round ${round.roundNumber}`}
                 </div>
-                <div className="flex-1">
-                  <div className="text-white font-semibold mb-1">
-                    {round.roundType === 'standalone' ? `Postponed Set ${round.roundNumber}` : `Round ${round.roundNumber}`}
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-slate-400">
-                    <Calendar className="w-4 h-4" />
-                    {round.date}
-                  </div>
+                <div className="flex items-center gap-2 text-xs sm:text-sm text-slate-400 mt-1">
+                  <Calendar className="w-4 h-4" />
+                  <span className="truncate">{round.date}</span>
                 </div>
               </div>
-
-              {/* Bottom section - Stats */}
-              <div className="flex items-center justify-between gap-4 pl-0 sm:pl-14">
-                <div className="flex-1">
-                  <div className="text-slate-400 text-xs sm:text-sm mb-1">Winner</div>
-                  <div className="flex items-center gap-2">
-                    <Trophy className="w-4 h-4 text-yellow-400" />
-                    <span className="text-white font-medium">{round.winner}</span>
-                  </div>
-                </div>
-                <div className="flex-1 text-center">
-                  <div className="text-slate-400 text-xs sm:text-sm mb-1">Average</div>
-                  <div className="text-white font-bold">{round.averageScore.toFixed(1)}</div>
-                </div>
-                <div className="flex-1 flex justify-end">
-                  <Badge variant="outline" className="border-blue-500/30 text-blue-400 text-xs">
-                    View Details
-                  </Badge>
-                </div>
               </div>
+              <div className="flex items-center gap-2 min-w-0">
+                <Trophy className="w-4 h-4 text-yellow-400" />
+                <span className="text-white font-medium truncate">{round.winner}</span>
+              </div>
+              <div className="flex items-center gap-2 text-slate-400">
+                <span className="text-xs">Avg:</span>
+                <span className="text-white font-bold text-lg">{round.averageScore.toFixed(1)}</span>
+              </div>
+              <Badge variant="outline" className="border-blue-500/30 text-blue-400 text-xs justify-self-start sm:justify-self-end">
+                View Details
+              </Badge>
             </div>
           </Card>
         ))}
