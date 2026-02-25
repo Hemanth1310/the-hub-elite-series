@@ -2,7 +2,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Clock, TrendingUp, TrendingDown, CheckCircle, XCircle, Target, BarChart3 } from 'lucide-react';
+import { Clock, TrendingUp, TrendingDown, CheckCircle, XCircle, Target, BarChart3, Ban } from 'lucide-react';
 import { Link } from 'wouter';
 import LayoutV1 from './Layout';
 import { useEffect, useState } from 'react';
@@ -22,7 +22,7 @@ export default function DashboardV1() {
   const [positionChange, setPositionChange] = useState(0);
   const [lastRoundPoints, setLastRoundPoints] = useState<number | null>(null);
   const [lastRoundPositionChange, setLastRoundPositionChange] = useState<number | null>(null);
-  const [lastRoundBankerSuccess, setLastRoundBankerSuccess] = useState<boolean | null>(null);
+  const [lastRoundBankerStatus, setLastRoundBankerStatus] = useState<'success' | 'fail' | 'none'>('none');
   const [competitionTick, setCompetitionTick] = useState(0);
 
   const [totalPoints, setTotalPoints] = useState(0);
@@ -167,7 +167,7 @@ export default function DashboardV1() {
 
       const { data: recentRounds } = await supabase
         .from('rounds')
-        .select('id')
+        .select('id,round_type')
         .eq('competition_id', activeCompetition.id)
         .eq('status', 'final')
         .lte('deadline', nowIso)
@@ -202,22 +202,27 @@ export default function DashboardV1() {
           currentRank !== null && previousRank !== null ? previousRank - currentRank : null
         );
 
-        const { data: bankerRow } = await supabase
-          .from('predictions')
-          .select('prediction,match:match_id(result,include_in_round)')
-          .eq('round_id', lastRound.id)
-          .eq('user_id', user.id)
-          .eq('is_banker', true)
-          .maybeSingle();
-
-        const match = unwrapRow(bankerRow?.match);
-        if (!bankerRow || !match?.result || match?.include_in_round !== true) {
-          setLastRoundBankerSuccess(null);
+        if (lastRound.round_type === 'standalone') {
+          setLastRoundBankerStatus('none');
         } else {
-          setLastRoundBankerSuccess(bankerRow.prediction === match.result);
+          const { data: bankerRows } = await supabase
+            .from('predictions')
+            .select('prediction,match:match_id(result,include_in_round)')
+            .eq('round_id', lastRound.id)
+            .eq('user_id', user.id)
+            .eq('is_banker', true)
+            .limit(1);
+
+          const bankerRow = bankerRows?.[0];
+          const match = unwrapRow(bankerRow?.match);
+          if (!bankerRow || !match?.result) {
+            setLastRoundBankerStatus('none');
+          } else {
+            setLastRoundBankerStatus(bankerRow.prediction === match.result ? 'success' : 'fail');
+          }
         }
       } else {
-        setLastRoundBankerSuccess(null);
+        setLastRoundBankerStatus('none');
       }
 
       setLoading(false);
@@ -442,19 +447,22 @@ export default function DashboardV1() {
               <div>
                 <div className="text-slate-400 text-xs mb-1">Banker Result</div>
                 <div className="flex items-center gap-1">
-                  {lastRoundBankerSuccess === null ? (
-                    <span className="text-base font-semibold text-slate-400">—</span>
-                  ) : lastRoundBankerSuccess ? (
+                  {lastRoundBankerStatus === 'success' ? (
                     <>
                       <CheckCircle className="w-4 h-4 text-green-400" />
                       <span className="text-base font-semibold text-green-400">Success</span>
                     </>
-                  ) : (
+                  ) : lastRoundBankerStatus === 'fail' ? (
                     <>
                       <XCircle className="w-4 h-4 text-red-400" />
                       <span className="text-base font-semibold text-red-400">Failed</span>
                     </>
-                  )}
+                  ) : lastRoundBankerStatus === 'none' ? (
+                    <>
+                      <Ban className="w-4 h-4 text-slate-400" />
+                      <span className="text-base font-semibold text-slate-400">No banker</span>
+                    </>
+                  ) : null}
                 </div>
               </div>
             </div>
