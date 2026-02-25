@@ -516,7 +516,7 @@ export default function RoundsV1() {
             </div>
 
             {/* Desktop layout */}
-            <div className="hidden sm:grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,3fr)_minmax(0,160px)_minmax(0,120px)_auto] sm:items-center">
+            <div className="hidden sm:grid gap-4  sm:grid-cols-[minmax(0,2fr)_minmax(0,3fr)_minmax(0,160px)_minmax(0,120px)] sm:items-center">
               <div className="flex gap-4">
                 <div className="w-12 h-12 bg-blue-500/10 rounded-xl flex items-center justify-center shrink-0">
                   <span className="text-blue-400 font-bold text-lg">{round.roundNumber}</span>
