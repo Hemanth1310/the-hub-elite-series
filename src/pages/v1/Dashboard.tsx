@@ -165,26 +165,42 @@ export default function DashboardV1() {
       const totalCount = relevantPredictions.length;
       setPredictionAccuracy(totalCount > 0 ? Math.round((correctCount / totalCount) * 100) : 0);
 
-      const { data: lastRound } = await supabase
+      const { data: recentRounds } = await supabase
         .from('rounds')
         .select('id')
         .eq('competition_id', activeCompetition.id)
         .eq('status', 'final')
         .lte('deadline', nowIso)
         .order('deadline', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .limit(2);
+
+      const lastRound = recentRounds?.[0] ?? null;
+      const previousRound = recentRounds?.[1] ?? null;
 
       if (lastRound?.id) {
-        const { data: statRow } = await supabase
-          .from('round_stats')
-          .select('total_points,rank')
-          .eq('round_id', lastRound.id)
-          .eq('user_id', user.id)
-          .maybeSingle();
+        const [{ data: statRow }, { data: prevStatRow }] = await Promise.all([
+          supabase
+            .from('round_stats')
+            .select('total_points,rank')
+            .eq('round_id', lastRound.id)
+            .eq('user_id', user.id)
+            .maybeSingle(),
+          previousRound?.id
+            ? supabase
+                .from('round_stats')
+                .select('rank')
+                .eq('round_id', previousRound.id)
+                .eq('user_id', user.id)
+                .maybeSingle()
+            : Promise.resolve({ data: null }),
+        ]);
 
         setLastRoundPoints(statRow?.total_points ?? null);
-        setLastRoundPositionChange(statRow?.rank ?? null);
+        const currentRank = statRow?.rank ?? null;
+        const previousRank = prevStatRow?.rank ?? null;
+        setLastRoundPositionChange(
+          currentRank !== null && previousRank !== null ? previousRank - currentRank : null
+        );
 
         const { data: bankerRow } = await supabase
           .from('predictions')
