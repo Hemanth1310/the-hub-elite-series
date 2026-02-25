@@ -69,19 +69,24 @@ export default function StatsV1() {
     fetchStats();
   }, [competitionTick]);
 
+  const eligibleRounds = useMemo(
+    () => entries.filter((entry) => entry.roundType !== 'standalone'),
+    [entries]
+  );
+
   const bestRounds = useMemo(() => {
-    return [...entries]
+    return [...eligibleRounds]
       .sort((a, b) => b.points - a.points)
       .slice(0, 10)
       .map((entry, index) => ({ ...entry, rank: index + 1 }));
-  }, [entries]);
+  }, [eligibleRounds]);
 
   const worstRounds = useMemo(() => {
-    return [...entries]
+    return [...eligibleRounds]
       .sort((a, b) => a.points - b.points)
       .slice(0, 10)
       .map((entry, index) => ({ ...entry, rank: index + 1 }));
-  }, [entries]);
+  }, [eligibleRounds]);
 
   return (
     <LayoutV1>
