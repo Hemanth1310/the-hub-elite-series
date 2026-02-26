@@ -850,25 +850,25 @@ export default function AdminRoundV1() {
               </div>
 
               {/* Date and Time Inputs */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 min-w-0">
+                <div className="min-w-0">
                   <label className="text-slate-400 text-xs mb-1 block">Match Date</label>
                   <Input
                     type="date"
                     value={match.kickoff?.split('T')[0] || ''}
                     onChange={(e) => handleMatchUpdate(match.id, 'kickoff', `${e.target.value}T${match.kickoff?.split('T')[1] || '15:00'}`)}
                     disabled={status !== 'scheduled'}
-                    className="w-full bg-slate-800 border-slate-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full max-w-full bg-slate-800 border-slate-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
                   />
                 </div>
-                <div>
+                <div className="min-w-0">
                   <label className="text-slate-400 text-xs mb-1 block">Kickoff Time</label>
                   <Input
                     type="time"
                     value={match.kickoff?.split('T')[1] || ''}
                     onChange={(e) => handleMatchUpdate(match.id, 'kickoff', `${match.kickoff?.split('T')[0] || '2025-02-01'}T${e.target.value}`)}
                     disabled={status !== 'scheduled'}
-                    className="w-full bg-slate-800 border-slate-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full max-w-full bg-slate-800 border-slate-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
                   />
                 </div>
               </div>
