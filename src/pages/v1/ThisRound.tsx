@@ -284,6 +284,26 @@ export default function ThisRoundV1() {
   
   const displayMatches = matches.filter(m => m.includeInRound);
 
+  const getMatchPoints = (isCorrect: boolean, isBanker: boolean, isMOTW: boolean) => {
+    if (roundType === 'postponed') return isCorrect ? 3 : 0;
+    if (isBanker && isMOTW) return isCorrect ? 12 : -6;
+    if (isBanker) return isCorrect ? 6 : -3;
+    if (isMOTW) return isCorrect ? 6 : 0;
+    return isCorrect ? 3 : 0;
+  };
+
+  const roundScore = showResults
+    ? displayMatches.reduce((sum, match) => {
+        const userPrediction = predictions[match.id];
+        const matchResult = match.result;
+        if (!userPrediction || !matchResult) return sum;
+        const isCorrect = userPrediction === matchResult;
+        const isBanker = bankerMatchId === match.id;
+        const isMOTW = match.isMatchOfTheWeek;
+        return sum + getMatchPoints(isCorrect, isBanker, isMOTW);
+      }, 0)
+    : null;
+
   if (loading) {
     return (
       <LayoutV1>
@@ -404,15 +424,17 @@ export default function ThisRoundV1() {
           <div className="px-4 pt-4">
             <Card className="bg-blue-500/10 border-blue-500/30 p-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center flex-shrink-0">
-                  <svg className="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <div className="flex-1">
-                  <div className="text-blue-400 font-semibold mb-1">Final Results Are In!</div>
-                  <div className="text-blue-300/80 text-sm">
-                    All matches complete. See your results below.
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center flex-shrink-0">
+                    <svg className="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-blue-400 font-semibold mb-1">Final Results Are In!</div>
+                    <div className="text-blue-300/80 text-sm">
+                      All matches complete. See your results below.
+                    </div>
                   </div>
                 </div>
               </div>
@@ -436,20 +458,7 @@ export default function ThisRoundV1() {
             // Banker only: 6 or -3
             // MOTW only: 6 or 0
             // Banker + MOTW: 12 or -6
-            let points: number | null = null;
-            if (showResults) {
-              if (roundType === 'postponed') {
-                points = isCorrect ? 3 : 0;
-              } else if (isBanker && isMOTW) {
-                points = isCorrect ? 12 : -6;
-              } else if (isBanker) {
-                points = isCorrect ? 6 : -3;
-              } else if (isMOTW) {
-                points = isCorrect ? 6 : 0;
-              } else {
-                points = isCorrect ? 3 : 0;
-              }
-            }
+            const points: number | null = showResults ? getMatchPoints(!!isCorrect, isBanker, isMOTW) : null;
 
             return (
               <div key={match.id} className={`p-4 hover:bg-slate-800/50 ${isBanker ? 'bg-yellow-500/5 border-l-4 border-yellow-500' : ''}`}>
@@ -519,6 +528,17 @@ export default function ThisRoundV1() {
             );
           })}
         </div>
+
+        {showResults && roundScore !== null && (
+          <div className="px-4 pb-4">
+            <div className="flex justify-end">
+              <div className="text-right">
+                <div className="text-xs text-slate-400">Round score</div>
+                <div className="text-white font-semibold">{roundScore}</div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {canEdit && (
           <div className="p-4 border-t border-slate-800 flex justify-between items-center">
