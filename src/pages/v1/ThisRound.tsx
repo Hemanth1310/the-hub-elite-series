@@ -389,7 +389,7 @@ export default function ThisRoundV1() {
         <div className="p-4 border-b border-slate-800 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-white">My Predictions</h2>
           {!canEdit && (
-            <Link href={`/version1/compare/${round.id}`}>
+            <Link href={`/version1/compare/${roundStatus === 'final' ? 'final' : 'locked'}`}>
               <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white">
                 <Users2 className="w-4 h-4 sm:mr-2" />
                 <span className="hidden sm:inline">Compare</span>
