@@ -192,7 +192,7 @@ export default function AdminV1() {
         <div className="bg-slate-900 border border-slate-800 rounded-lg overflow-hidden">
           <div className="p-6 border-b border-slate-800 flex items-center justify-between">
             <h2 className="text-xl font-bold text-white">Rounds</h2>
-            <Link href="/version1/admin/round/new">
+            <Link href="/admin/round/new">
               <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
                 <Plus className="w-4 h-4 mr-2" />
                 Add New Round
@@ -221,7 +221,7 @@ export default function AdminV1() {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
-                    <Link href={`/version1/admin/round/${round.number}`}>
+                    <Link href={`/admin/round/${round.number}`}>
                       <Button size="sm" variant="ghost" className="text-blue-400 hover:text-blue-300 hover:bg-blue-500/10">
                         <Pencil className="w-4 h-4 mr-2" />
                         Edit
@@ -240,7 +240,7 @@ export default function AdminV1() {
         <div className="bg-slate-900 border border-slate-800 rounded-lg overflow-hidden">
           <div className="p-6 border-b border-slate-800 flex items-center justify-between">
             <h2 className="text-xl font-bold text-white">Postponed Sets</h2>
-            <Link href="/version1/admin/postponed/new">
+            <Link href="/admin/postponed/new">
               <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
                 <Plus className="w-4 h-4 mr-2" />
                 Add Postponed Set
@@ -269,7 +269,7 @@ export default function AdminV1() {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
-                    <Link href={`/version1/admin/postponed/${set.number}`}>
+                    <Link href={`/admin/postponed/${set.number}`}>
                       <Button size="sm" variant="ghost" className="text-blue-400 hover:text-blue-300 hover:bg-blue-500/10">
                         <Pencil className="w-4 h-4 mr-2" />
                         Edit

@@ -236,26 +236,26 @@ export default function DashboardV1() {
       if (predictionsComplete) {
         return {
           text: 'View Your Picks',
-          href: '/version1/active',
+          href: '/active',
           variant: 'outline' as const,
         };
       }
       return {
         text: 'Make Your Predictions',
-        href: '/version1/active',
+        href: '/active',
         variant: 'default' as const,
       };
     }
     if (roundStatus === 'locked') {
       return {
         text: 'View Your Picks',
-        href: '/version1/active',
+        href: '/active',
         variant: 'outline' as const,
       };
     }
     return {
       text: 'See Results',
-      href: '/version1/active',
+      href: '/active',
       variant: 'default' as const,
     };
   };
@@ -358,7 +358,7 @@ export default function DashboardV1() {
             
             {/* Small link to Round */}
             {roundStatus === 'open' && (
-              <Link href="/version1/active">
+              <Link href="/active">
                 <a className="text-blue-400 hover:text-blue-300 text-sm inline-block">
                   → Go to Round to predict
                 </a>
@@ -366,7 +366,7 @@ export default function DashboardV1() {
             )}
             
             {(roundStatus === 'locked' || roundStatus === 'active' || roundStatus === 'completed') && (
-              <Link href="/version1/active">
+              <Link href="/active">
                 <a className="text-blue-400 hover:text-blue-300 text-sm inline-block">
                   → View your round
                 </a>
@@ -374,7 +374,7 @@ export default function DashboardV1() {
             )}
             
             {roundStatus === 'final' && (
-              <Link href="/version1/active">
+              <Link href="/active">
                 <a className="text-blue-400 hover:text-blue-300 text-sm inline-block">
                   → See round results
                 </a>

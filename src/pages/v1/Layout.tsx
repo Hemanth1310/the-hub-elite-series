@@ -110,14 +110,14 @@ export default function LayoutV1({ children }: { children: React.ReactNode }) {
         {/* Navigation */}
         <nav className="container mx-auto px-2 sm:px-4 py-0">
           <div className="flex gap-0.5 sm:gap-1 justify-around sm:justify-start overflow-x-auto">
-            <NavLink href="/version1" icon={Home} label="Home" active={location === '/version1'} />
-            <NavLink href="/version1/active" icon={CircleDot} label="Round" active={location === '/version1/active'} />
-            <NavLink href="/version1/leaderboard" icon={Trophy} label="Leaderboard" active={location === '/version1/leaderboard'} />
-            <NavLink href="/version1/rounds" icon={History} label="History" active={location === '/version1/rounds'} />
-            <NavLink href="/version1/stats" icon={BarChart3} label="Stats" active={location === '/version1/stats'} />
+            <NavLink href="/dashboard" icon={Home} label="Home" active={location === '/dashboard'} />
+            <NavLink href="/active" icon={CircleDot} label="Round" active={location === '/active'} />
+            <NavLink href="/leaderboard" icon={Trophy} label="Leaderboard" active={location === '/leaderboard'} />
+            <NavLink href="/rounds" icon={History} label="History" active={location === '/rounds'} />
+            <NavLink href="/stats" icon={BarChart3} label="Stats" active={location === '/stats'} />
             
             {user?.isAdmin && (
-              <NavLink href="/version1/admin" icon={Settings} label="Admin" active={location === '/version1/admin'} />
+              <NavLink href="/admin" icon={Settings} label="Admin" active={location === '/admin'} />
             )}
           </div>
         </nav>

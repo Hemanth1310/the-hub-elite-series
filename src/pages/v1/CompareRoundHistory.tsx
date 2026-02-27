@@ -37,7 +37,7 @@ type PointsRow = {
 
 export default function CompareRoundHistoryV1() {
   const { user } = useAuth();
-  const [, params] = useRoute('/version1/rounds/:roundNumber/compare');
+  const [, params] = useRoute('/rounds/:roundNumber/compare');
   const roundNumber = params?.roundNumber || '15';
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -199,7 +199,7 @@ export default function CompareRoundHistoryV1() {
   return (
     <LayoutV1>
       <div className="mb-8">
-        <Link href="/version1/rounds">
+        <Link href="/rounds">
           <Button
             variant="ghost"
             className="mb-4 text-blue-400 hover:text-blue-300"

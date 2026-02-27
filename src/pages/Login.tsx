@@ -33,7 +33,7 @@ export default function Login() {
       setError(signInError);
       setLoading(false);
     } else {
-      setLocation('/version1');
+      setLocation('/dashboard');
     }
   };
 

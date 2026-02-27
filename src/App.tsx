@@ -50,53 +50,53 @@ function App() {
         <Route path="/" component={Home} />
         <Route path="/login" component={Login} />
         
-        {/* Protected Version 1 Routes */}
-        <Route path="/version1">
+        {/* Protected App Routes */}
+        <Route path="/dashboard">
           <ProtectedRoute>
             <DashboardV1 />
           </ProtectedRoute>
         </Route>
-        <Route path="/version1/active">
+        <Route path="/active">
           <ProtectedRoute>
             <ThisRoundV1 />
           </ProtectedRoute>
         </Route>
-        <Route path="/version1/leaderboard">
+        <Route path="/leaderboard">
           <ProtectedRoute>
             <LeaderboardV1 />
           </ProtectedRoute>
         </Route>
-        <Route path="/version1/rounds">
+        <Route path="/rounds">
           <ProtectedRoute>
             <RoundsV1 />
           </ProtectedRoute>
         </Route>
-        <Route path="/version1/rounds/:roundNumber/compare">
+        <Route path="/rounds/:roundNumber/compare">
           <ProtectedRoute>
             <CompareRoundHistoryV1 />
           </ProtectedRoute>
         </Route>
-        <Route path="/version1/stats">
+        <Route path="/stats">
           <ProtectedRoute>
             <StatsV1 />
           </ProtectedRoute>
         </Route>
-        <Route path="/version1/admin/round/:roundNumber">
+        <Route path="/admin/round/:roundNumber">
           <ProtectedRoute>
             <AdminRoundV1 />
           </ProtectedRoute>
         </Route>
-        <Route path="/version1/admin/postponed/:id">
+        <Route path="/admin/postponed/:id">
           <ProtectedRoute>
             <AdminRoundV1 />
           </ProtectedRoute>
         </Route>
-        <Route path="/version1/admin">
+        <Route path="/admin">
           <ProtectedRoute>
             <AdminV1 />
           </ProtectedRoute>
         </Route>
-        <Route path="/version1/compare/:status">
+        <Route path="/compare/:status">
           <ProtectedRoute>
             <CompareRoundV1 />
           </ProtectedRoute>

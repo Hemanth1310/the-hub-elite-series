@@ -256,7 +256,7 @@ export default function RoundsV1() {
               </h1>
               <Badge className="bg-slate-700 text-slate-300">FINAL</Badge>
             </div>
-            <Link href={`/version1/rounds/${selectedRoundNumber}/compare`}>
+            <Link href={`/rounds/${selectedRoundNumber}/compare`}>
               <Button className="bg-blue-600 hover:bg-blue-700">
                 <Users className="w-4 h-4 mr-2" />
                 <span className="hidden sm:inline">Compare with Others</span>

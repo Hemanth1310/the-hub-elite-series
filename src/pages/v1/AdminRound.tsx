@@ -35,8 +35,8 @@ import { supabase } from '@/lib/supabase';
  */
 
 export default function AdminRoundV1() {
-  const [, params] = useRoute('/version1/admin/round/:roundNumber');
-  const [, postponedParams] = useRoute('/version1/admin/postponed/:id');
+  const [, params] = useRoute('/admin/round/:roundNumber');
+  const [, postponedParams] = useRoute('/admin/postponed/:id');
   const [, setLocation] = useLocation();
   
   // Determine if this is a postponed set or regular round
@@ -458,7 +458,7 @@ export default function AdminRoundV1() {
           roundNumber: parseInt(roundNumberInput, 10) || 0,
           roundType: isPostponed ? 'postponed' : 'regular',
           deadline: deadline,
-          appUrl: `${window.location.origin}/version1/active`,
+          appUrl: `${window.location.origin}/active`,
         }
       ).then(({ success, failed }) => {
         if (success > 0) {
@@ -472,7 +472,7 @@ export default function AdminRoundV1() {
       toast.info('Email notifications not configured. Set up EmailJS to enable notifications.');
     }
     
-    setLocation('/version1/admin');
+    setLocation('/admin');
   };
 
   const handleUnpublish = async () => {
@@ -554,7 +554,7 @@ export default function AdminRoundV1() {
         {
           roundNumber: parseInt(roundNumberInput, 10) || 0,
           roundType: isPostponed ? 'postponed' : 'regular',
-          appUrl: `${window.location.origin}/version1/rounds`,
+          appUrl: `${window.location.origin}/rounds`,
         }
       ).then(({ success, failed }) => {
         if (success > 0) {
@@ -643,7 +643,7 @@ export default function AdminRoundV1() {
   return (
     <LayoutV1>
       <div className="mb-8">
-        <Link href="/version1/admin">
+        <Link href="/admin">
           <Button variant="ghost" className="mb-4 text-blue-400 hover:text-blue-300">
             <ChevronLeft className="w-4 h-4 mr-2" />
             Back to Admin
