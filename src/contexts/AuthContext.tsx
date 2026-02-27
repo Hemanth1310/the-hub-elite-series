@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { supabase, UserProfile } from '@/lib/supabase';
+import { getFirstName } from '@/lib/utils';
 import { User } from '@supabase/supabase-js';
 
 type AuthContextType = {
@@ -66,7 +67,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const buildProfileFromAuth = (authUser: User): UserProfile => ({
     id: authUser.id,
     email: authUser.email || '',
-    name: authUser.user_metadata?.name || authUser.email?.split('@')[0] || 'User',
+    name: getFirstName(authUser.user_metadata?.name, authUser.email, 'User'),
     isAdmin: authUser.user_metadata?.isAdmin === true || authUser.user_metadata?.is_admin === true,
   });
 
@@ -82,7 +83,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser({
           id: data.id,
           email: data.email,
-          name: data.name,
+          name: getFirstName(data.name, data.email, 'User'),
           isAdmin: data.is_admin === true,
         });
         return;

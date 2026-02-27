@@ -10,6 +10,7 @@ import { ChevronLeft, Star } from 'lucide-react';
 import { MatchResult } from '@/types';
 import LayoutV1 from './Layout';
 import { supabase } from '@/lib/supabase';
+import { getFirstName } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 
 type RoundInfo = {
@@ -200,7 +201,7 @@ export default function CompareRoundV1() {
   return (
     <LayoutV1>
       <div className="mb-6">
-        <Link href="/version1">
+        <Link href="/active">
           <Button variant="ghost" size="sm" className="mb-4 text-blue-400 hover:text-blue-300">
             <ChevronLeft className="w-4 h-4 mr-2" />
             Back to This Round
@@ -249,7 +250,7 @@ export default function CompareRoundV1() {
           <SelectContent>
             {otherUsers.map(user => (
               <SelectItem key={user.id} value={user.id}>
-                {user.name}
+                {getFirstName(user.name, undefined, 'Player')}
               </SelectItem>
             ))}
           </SelectContent>
@@ -321,7 +322,7 @@ export default function CompareRoundV1() {
                   {/* Their Pick */}
                   <div>
                     <div className="text-xs text-slate-400 mb-2 flex items-center justify-between">
-                      <span>{selectedUser?.name}</span>
+                      <span>{getFirstName(selectedUser?.name, undefined, 'Player')}</span>
                       {!isPostponed && theirBanker && <Star className="w-3 h-3 text-blue-400 fill-current" />}
                     </div>
                     <Badge
@@ -360,7 +361,7 @@ export default function CompareRoundV1() {
                 <TableHead className="text-slate-400 font-semibold text-center w-24">
                   <div className="flex flex-col items-center gap-1">
                     <span>You</span>
-                    <span className="text-xs text-blue-400">({user?.name || 'You'})</span>
+                    <span className="text-xs text-blue-400">({getFirstName(user?.name, user?.email, 'You')})</span>
                   </div>
                 </TableHead>
                 {isFinal && (
@@ -368,7 +369,7 @@ export default function CompareRoundV1() {
                 )}
                 <TableHead className="text-slate-400 font-semibold text-center w-24">
                   <div className="flex flex-col items-center gap-1">
-                    <span>{selectedUser?.name}</span>
+                    <span>{getFirstName(selectedUser?.name, undefined, 'Player')}</span>
                   </div>
                 </TableHead>
               </TableRow>

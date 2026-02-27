@@ -20,6 +20,7 @@ import { toast } from 'sonner';
 import LayoutV1 from './Layout';
 import { notifyAllPlayers, isEmailServiceConfigured } from '@/lib/emailService';
 import { supabase } from '@/lib/supabase';
+import { getFirstName } from '@/lib/utils';
 
 /**
  * Admin Round Management
@@ -448,7 +449,7 @@ export default function AdminRoundV1() {
         .filter((player) => player.email)
         .map((player) => ({
           email: player.email,
-          name: player.name.split(' ')[0] || player.email.split('@')[0],
+          name: getFirstName(player.name, undefined, 'Player'),
         }));
 
       notifyAllPlayers(
@@ -545,7 +546,7 @@ export default function AdminRoundV1() {
         .filter((player) => player.email)
         .map((player) => ({
           email: player.email,
-          name: player.name.split(' ')[0] || player.email.split('@')[0],
+          name: getFirstName(player.name, undefined, 'Player')
         }));
 
       notifyAllPlayers(

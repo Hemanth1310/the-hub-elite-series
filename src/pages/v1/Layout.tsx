@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import hubLogo from '@/assets/images/hub-logo.png';
 import { supabase } from '@/lib/supabase';
+import { getFirstName } from '@/lib/utils';
 
 export default function LayoutV1({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
@@ -94,7 +95,9 @@ export default function LayoutV1({ children }: { children: React.ReactNode }) {
 
             {/* User Info & Logout */}
             <div className="flex items-center gap-2">
-              <span className="text-xs sm:text-sm text-slate-400 hidden md:inline">{user?.name}</span>
+              <span className="text-xs sm:text-sm text-slate-400 hidden md:inline">
+                {getFirstName(user?.name, user?.email, 'User')}
+              </span>
               <Button
                 variant="ghost"
                 size="sm"

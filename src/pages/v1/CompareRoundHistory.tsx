@@ -7,6 +7,7 @@ import { ChevronLeft, Star, Users } from 'lucide-react';
 import { useRoute, Link } from 'wouter';
 import LayoutV1 from './Layout';
 import { supabase } from '@/lib/supabase';
+import { getFirstName } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { MatchResult } from '@/types';
 
@@ -271,7 +272,7 @@ export default function CompareRoundHistoryV1() {
                       : 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white'
                   }`}
                 >
-                  <div className="font-medium whitespace-nowrap">{user.name}</div>
+                  <div className="font-medium whitespace-nowrap">{getFirstName(user.name, undefined, 'Player')}</div>
                   <div className="text-xs text-slate-500 mt-1 whitespace-nowrap">
                     {userPoints} pts
                   </div>
@@ -294,7 +295,7 @@ export default function CompareRoundHistoryV1() {
                       : 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white'
                   }`}
                 >
-                  <div className="font-medium">{user.name}</div>
+                  <div className="font-medium">{getFirstName(user.name, undefined, 'Player')}</div>
                   <div className="text-xs text-slate-500 mt-1">
                     {userPoints} pts
                   </div>
@@ -309,7 +310,7 @@ export default function CompareRoundHistoryV1() {
           {selectedUserId ? (
             <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 sm:p-6">
               <h2 className="text-white font-semibold text-base sm:text-lg mb-4 sm:mb-6">
-                You vs {users.find(u => u.id === selectedUserId)?.name}
+                You vs {getFirstName(users.find(u => u.id === selectedUserId)?.name, undefined, 'Player')}
               </h2>
               
               {/* Mobile Card Layout */}
@@ -365,7 +366,9 @@ export default function CompareRoundHistoryV1() {
                           </div>
                         </div>
                         <div>
-                          <div className="text-slate-400 text-xs mb-1">{users.find(u => u.id === selectedUserId)?.name}</div>
+                          <div className="text-slate-400 text-xs mb-1">
+                            {getFirstName(users.find(u => u.id === selectedUserId)?.name, undefined, 'Player')}
+                          </div>
                           <div className="flex items-center gap-1">
                             {!isPostponed && theirBanker && <Star className="w-3 h-3 text-blue-400 fill-current" />}
                             <span className={`font-semibold ${theirCorrect ? 'text-green-400' : 'text-red-400'}`}>
@@ -407,7 +410,7 @@ export default function CompareRoundHistoryV1() {
                       <TableHead className="text-slate-400 font-semibold text-center w-16">Result</TableHead>
                       <TableHead className="text-slate-400 font-semibold text-center w-20">You</TableHead>
                       <TableHead className="text-slate-400 font-semibold text-center w-20">
-                        {users.find(u => u.id === selectedUserId)?.name}
+                        {getFirstName(users.find(u => u.id === selectedUserId)?.name, undefined, 'Player')}
                       </TableHead>
                     </TableRow>
                   </TableHeader>

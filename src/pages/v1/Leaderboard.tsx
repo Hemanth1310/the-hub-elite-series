@@ -6,6 +6,7 @@ import { Trophy } from 'lucide-react';
 import LayoutV1 from './Layout';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { getFirstName } from '@/lib/utils';
 
 type LeaderboardEntry = {
   userId: string;
@@ -59,7 +60,7 @@ export default function LeaderboardV1() {
         const userData = Array.isArray(row.user) ? row.user[0] : row.user;
         const entry = aggregated.get(row.user_id) || {
           userId: row.user_id,
-          userName: userData?.name || 'Player',
+          userName: getFirstName(userData?.name, undefined, 'Player'),
           rank: 0,
           totalPoints: 0,
           matchesPlayed: 0,

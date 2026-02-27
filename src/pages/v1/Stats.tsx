@@ -5,6 +5,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { TrendingUp, TrendingDown, Award } from 'lucide-react';
 import LayoutV1 from './Layout';
 import { supabase } from '@/lib/supabase';
+import { getFirstName } from '@/lib/utils';
 
 type RoundEntry = {
   rank: number;
@@ -53,7 +54,7 @@ export default function StatsV1() {
         const user = Array.isArray(row.user) ? row.user[0] : row.user;
         return {
           rank: 0,
-          userName: user?.name || 'Player',
+          userName: getFirstName(user?.name, undefined, 'Player'),
           roundNumber: round?.round_number || 0,
           roundType: round?.round_type || null,
           points: row.total_points || 0,

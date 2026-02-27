@@ -8,6 +8,7 @@ import { Trophy, Calendar, ChevronLeft, Star, Users } from 'lucide-react';
 import { Link } from 'wouter';
 import LayoutV1 from './Layout';
 import { supabase } from '@/lib/supabase';
+import { getFirstName } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 
 type RoundSummary = {
@@ -184,7 +185,7 @@ export default function RoundsV1() {
           userId: row.user_id,
           prediction: row.prediction,
           isBanker: row.is_banker === true,
-          userName: userData?.name || 'Player',
+          userName: getFirstName(userData?.name, undefined, 'Player'),
         };
       });
 
@@ -204,7 +205,7 @@ export default function RoundsV1() {
       const myStat = (statsRows || []).find((row: any) => row.user_id === user?.id);
 
       setRoundStats({
-        winner: winnerUser?.name || '—',
+        winner: getFirstName(winnerUser?.name, undefined, '—'),
         averageScore,
         myRank: myStat?.rank || null,
         myPoints: myStat?.total_points ?? null,
@@ -533,7 +534,7 @@ export default function RoundsV1() {
               </div>
               <div className="flex items-center gap-2 min-w-0">
                 <Trophy className="w-4 h-4 text-yellow-400" />
-                <span className="text-white font-medium truncate">{round.winner}</span>
+                <span className="text-white font-medium truncate">{round.winner.split(/\s+/)[0]}</span>
               </div>
               <div className="flex items-center gap-2 text-slate-400">
                 <span className="text-xs">Avg:</span>
