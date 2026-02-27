@@ -37,9 +37,18 @@ export const sendRoundActiveNotification = async (
   data: EmailNotificationData
 ): Promise<boolean> => {
   try {
+    if (!playerEmail) {
+      console.error('❌ Missing recipient email for round active notification');
+      return false;
+    }
+
     const templateParams = {
       to_email: playerEmail,
       to_name: playerName,
+      email: playerEmail,
+      name: playerName,
+      user_email: playerEmail,
+      user_name: playerName,
       round_number: data.roundNumber,
       round_type: data.roundType === 'postponed' ? 'Postponed Game' : `Round ${data.roundNumber}`,
       deadline: data.deadline || 'Check app for deadline',
@@ -71,9 +80,18 @@ export const sendRoundFinalNotification = async (
   data: EmailNotificationData
 ): Promise<boolean> => {
   try {
+    if (!playerEmail) {
+      console.error('❌ Missing recipient email for round final notification');
+      return false;
+    }
+
     const templateParams = {
       to_email: playerEmail,
       to_name: playerName,
+      email: playerEmail,
+      name: playerName,
+      user_email: playerEmail,
+      user_name: playerName,
       round_number: data.roundNumber,
       round_type: data.roundType === 'postponed' ? 'Postponed Game' : `Round ${data.roundNumber}`,
       app_url: data.appUrl,

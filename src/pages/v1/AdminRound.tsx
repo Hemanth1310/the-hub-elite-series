@@ -444,7 +444,12 @@ export default function AdminRoundV1() {
         .from('users')
         .select('email,name');
 
-      const recipients = (players || []).filter((player) => player.email);
+      const recipients = (players || [])
+        .filter((player) => player.email)
+        .map((player) => ({
+          email: player.email,
+          name: player.name || player.email.split('@')[0],
+        }));
 
       notifyAllPlayers(
         recipients,
@@ -536,7 +541,12 @@ export default function AdminRoundV1() {
         .from('users')
         .select('email,name');
 
-      const recipients = (players || []).filter((player) => player.email);
+      const recipients = (players || [])
+        .filter((player) => player.email)
+        .map((player) => ({
+          email: player.email,
+          name: player.name || player.email.split('@')[0],
+        }));
 
       notifyAllPlayers(
         recipients,
