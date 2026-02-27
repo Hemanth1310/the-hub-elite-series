@@ -28,6 +28,32 @@ export interface EmailNotificationData {
   appUrl: string;
 }
 
+const formatEmailDeadline = (deadline?: string): string | undefined => {
+  if (!deadline) {
+    return undefined;
+  }
+
+  const parsedDate = new Date(deadline);
+  if (Number.isNaN(parsedDate.getTime())) {
+    return undefined;
+  }
+
+  const datePart = parsedDate.toLocaleDateString('en-GB', {
+    day: '2-digit',
+    month: 'short',
+  });
+  const timePart = parsedDate
+    .toLocaleTimeString('en-GB', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    })
+    .replace(' ', '')
+    .toLowerCase();
+
+  return `${datePart} ${timePart}`;
+};
+
 /**
  * Send notification when round becomes active (predictions open)
  */
@@ -51,7 +77,7 @@ export const sendRoundActiveNotification = async (
       user_name: playerName,
       round_number: data.roundNumber,
       round_type: data.roundType === 'postponed' ? 'Postponed Game' : `Round ${data.roundNumber}`,
-      deadline: data.deadline || 'Check app for deadline',
+      deadline: formatEmailDeadline(data.deadline) || 'Check app for deadline',
       app_url: data.appUrl,
       subject: `🎯 ${data.roundType === 'postponed' ? 'Postponed Game' : `Round ${data.roundNumber}`} - Make Your Predictions!`,
     };
