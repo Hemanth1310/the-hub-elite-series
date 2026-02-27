@@ -41,7 +41,7 @@ type PredictionRow = {
 
 export default function CompareRoundV1() {
   const { user } = useAuth();
-  const [, params] = useRoute('/version1/compare/:status');
+  const [, params] = useRoute('/compare/:status');
   const status = (params?.status as 'locked' | 'final') || 'locked';
 
   const [loading, setLoading] = useState(true);
