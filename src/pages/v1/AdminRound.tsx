@@ -440,20 +440,14 @@ export default function AdminRoundV1() {
     
     // Send email notifications to all players
     if (isEmailServiceConfigured()) {
-      const mockPlayers = [
-        { email: 'player1@example.com', name: 'Player 1' },
-        { email: 'player2@example.com', name: 'Player 2' },
-        { email: 'player3@example.com', name: 'Player 3' },
-        { email: 'player4@example.com', name: 'Player 4' },
-        { email: 'player5@example.com', name: 'Player 5' },
-        { email: 'player6@example.com', name: 'Player 6' },
-        { email: 'player7@example.com', name: 'Player 7' },
-        { email: 'player8@example.com', name: 'Player 8' },
-      ];
-      
-      // In production, fetch real players from database
+      const { data: players } = await supabase
+        .from('users')
+        .select('email,name');
+
+      const recipients = (players || []).filter((player) => player.email);
+
       notifyAllPlayers(
-        mockPlayers,
+        recipients,
         'active',
         {
           roundNumber: parseInt(roundNumberInput, 10) || 0,
@@ -538,20 +532,14 @@ export default function AdminRoundV1() {
     
     // Send email notifications to all players
     if (isEmailServiceConfigured()) {
-      const mockPlayers = [
-        { email: 'player1@example.com', name: 'Player 1' },
-        { email: 'player2@example.com', name: 'Player 2' },
-        { email: 'player3@example.com', name: 'Player 3' },
-        { email: 'player4@example.com', name: 'Player 4' },
-        { email: 'player5@example.com', name: 'Player 5' },
-        { email: 'player6@example.com', name: 'Player 6' },
-        { email: 'player7@example.com', name: 'Player 7' },
-        { email: 'player8@example.com', name: 'Player 8' },
-      ];
-      
-      // In production, fetch real players from database
+      const { data: players } = await supabase
+        .from('users')
+        .select('email,name');
+
+      const recipients = (players || []).filter((player) => player.email);
+
       notifyAllPlayers(
-        mockPlayers,
+        recipients,
         'final',
         {
           roundNumber: parseInt(roundNumberInput, 10) || 0,
