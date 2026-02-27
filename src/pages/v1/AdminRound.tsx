@@ -448,7 +448,7 @@ export default function AdminRoundV1() {
         .filter((player) => player.email)
         .map((player) => ({
           email: player.email,
-          name: player.name || player.email.split('@')[0],
+          name: player.name.split(' ')[0] || player.email.split('@')[0],
         }));
 
       notifyAllPlayers(
