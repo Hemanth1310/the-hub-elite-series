@@ -292,16 +292,23 @@ export default function ThisRoundV1() {
     return isCorrect ? 3 : 0;
   };
 
-  const roundScore = showResults
-    ? displayMatches.reduce((sum, match) => {
-        const userPrediction = predictions[match.id];
-        const matchResult = match.result;
-        if (!userPrediction || !matchResult) return sum;
-        const isCorrect = userPrediction === matchResult;
-        const isBanker = bankerMatchId === match.id;
-        const isMOTW = match.isMatchOfTheWeek;
-        return sum + getMatchPoints(isCorrect, isBanker, isMOTW);
-      }, 0)
+  const roundTotals = showResults
+    ? displayMatches.reduce(
+        (acc, match) => {
+          const userPrediction = predictions[match.id];
+          const matchResult = match.result;
+          if (!userPrediction || !matchResult) return acc;
+          const isCorrect = userPrediction === matchResult;
+          const isBanker = bankerMatchId === match.id;
+          const isMOTW = match.isMatchOfTheWeek;
+          return {
+            points: acc.points + getMatchPoints(isCorrect, isBanker, isMOTW),
+            correct: acc.correct + (isCorrect ? 1 : 0),
+            total: acc.total + 1,
+          };
+        },
+        { points: 0, correct: 0, total: 0 }
+      )
     : null;
 
   if (loading) {
@@ -529,14 +536,31 @@ export default function ThisRoundV1() {
           })}
         </div>
 
-        {showResults && roundScore !== null && (
-          <div className="px-4 pb-4">
-            <div className="flex justify-end">
-              <div className="text-right">
-                <div className="text-xs text-slate-400">Round score</div>
-                <div className="text-white font-semibold">{roundScore}</div>
+        {showResults && roundTotals && (
+          <div className="px-4 pb-6">
+            <Card className="bg-slate-900/60 border-slate-800">
+              <div className="flex items-center justify-between p-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <div className="text-slate-400 text-xs uppercase">Total Round Score</div>
+                    <div className="text-slate-300 text-sm">
+                      {roundTotals.correct} of {roundTotals.total} correct
+                    </div>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-blue-400 text-2xl font-bold">
+                    {roundTotals.points > 0 ? `+${roundTotals.points}` : roundTotals.points}
+                  </div>
+                  <div className="text-slate-400 text-xs">points</div>
+                </div>
               </div>
-            </div>
+            </Card>
           </div>
         )}
 
