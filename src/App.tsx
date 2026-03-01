@@ -3,6 +3,9 @@ import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Home from './pages/Home';
 import Login from './pages/Login';
+import Contact from './pages/Contact';
+import Privacy from './pages/Privacy';
+import Terms from './pages/Terms';
 import DashboardV1 from './pages/v1/Dashboard';
 import ThisRoundV1 from './pages/v1/ThisRound';
 import LeaderboardV1 from './pages/v1/Leaderboard';
@@ -48,6 +51,9 @@ function App() {
     <AuthProvider>
       <Switch>
         <Route path="/" component={Home} />
+        <Route path="/contact" component={Contact} />
+        <Route path="/privacy" component={Privacy} />
+        <Route path="/terms" component={Terms} />
         <Route path="/login" component={Login} />
         
         {/* Protected App Routes */}

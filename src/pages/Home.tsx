@@ -70,11 +70,17 @@ export default function Home() {
         <footer className="border-t border-slate-900/80 px-6 sm:px-10 py-4 text-xs text-slate-500 flex flex-col sm:flex-row items-center justify-between gap-2">
           <div>MatchTips © 2026 • A product from The HUB</div>
           <div className="flex items-center gap-3">
-            <span>Contact</span>
+            <Link href="/contact">
+              <a className="hover:text-white transition-colors">Contact</a>
+            </Link>
             <span>•</span>
-            <span>Privacy</span>
+            <Link href="/privacy">
+              <a className="hover:text-white transition-colors">Privacy</a>
+            </Link>
             <span>•</span>
-            <span>Terms</span>
+            <Link href="/terms">
+              <a className="hover:text-white transition-colors">Terms</a>
+            </Link>
           </div>
         </footer>
       </div>
