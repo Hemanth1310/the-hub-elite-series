@@ -22,7 +22,7 @@ export default function Terms() {
 
         <main className="flex-1 px-6 sm:px-10 py-10">
           <div className="max-w-3xl mx-auto space-y-6">
-            <h1 className="text-3xl sm:text-4xl font-semibold">Terms of Service</h1>
+            <h1 className="text-3xl sm:text-4xl font-semibold text-white">Terms of Service</h1>
             <p className="text-slate-300">
               MatchTips is an invite-only competition. By using the platform, you agree to play fair,
               respect other players, and follow competition rules set by the admin.

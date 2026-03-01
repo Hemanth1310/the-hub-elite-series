@@ -22,7 +22,7 @@ export default function Contact() {
 
         <main className="flex-1 px-6 sm:px-10 py-10">
           <div className="max-w-3xl mx-auto">
-            <h1 className="text-3xl sm:text-4xl font-semibold mb-4">Contact</h1>
+            <h1 className="text-3xl sm:text-4xl font-semibold mb-4 text-white">Contact</h1>
             <p className="text-slate-300 mb-6">
               Have questions, feedback, or need access? Reach out and we’ll help.
             </p>

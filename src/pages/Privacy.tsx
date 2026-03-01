@@ -22,7 +22,7 @@ export default function Privacy() {
 
         <main className="flex-1 px-6 sm:px-10 py-10">
           <div className="max-w-3xl mx-auto space-y-6">
-            <h1 className="text-3xl sm:text-4xl font-semibold">Privacy Policy</h1>
+            <h1 className="text-3xl sm:text-4xl font-semibold text-white">Privacy Policy</h1>
             <p className="text-slate-300">
               We collect only what we need to run MatchTips: your account details, predictions, and
               results. We never sell your data.
