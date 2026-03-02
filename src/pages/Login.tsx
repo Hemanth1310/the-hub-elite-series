@@ -97,7 +97,7 @@ export default function Login() {
             type="submit"
             size="lg"
             disabled={loading || !supabaseConfigured}
-            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white"
           >
             {loading ? 'Signing in...' : 'Sign In'}
           </Button>
