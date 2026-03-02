@@ -43,7 +43,7 @@ export default function Login() {
       <Card className="bg-slate-900/50 backdrop-blur border-slate-800 p-8 sm:p-12 max-w-md w-full">
         <div className="text-center mb-8">
           <img src={mtlogo} alt="MatchTips" className="w-32 mx-auto mb-4 object-contain" />
-          <h1 className="text-3xl font-bold text-white mb-2">Welcome to The Hub</h1>
+          <h1 className="text-3xl font-bold text-white mb-2">Welcome to MatchTips</h1>
           <p className="text-slate-400 text-sm">Sign in to make your predictions</p>
         </div>
 
