@@ -37,48 +37,47 @@ export default function Home() {
               <img src={mtlogo} alt="MatchTips" className="max-w-54 object-contain"/>
             </div>
 
-            <h1 className="text-3xl sm:text-5xl font-semibold">The weekly football match</h1>
+            <h1 className="text-3xl sm:text-5xl font-semibold">Den ukentlige fotballkampen</h1>
 
             <p className="text-slate-300 text-sm sm:text-base max-w-xl mx-auto">
-              Predict the matches. Compete with friends.<br />
-              Win the round.
+              Tipp kampene. Konkurrer med venner.<br />
+              Vinn runden.
             </p>
 
             <Link href="/login">
               <Button size="lg" className="bg-emerald-600 hover:bg-emerald-700 text-white px-10">
-                Log in
+                Logg inn
               </Button>
             </Link>
 
             <div className="pt-6 space-y-6">
               <div className="mx-auto h-px w-3/4 bg-slate-800" />
               <p className="text-slate-400 text-sm leading-relaxed max-w-2xl mx-auto">
-                MatchTips is a football competition where you predict the matches and compete against
-                friends, family, colleagues — and the rest of Norway — to prove who knows football best.
+                MatchTips er en fotballkonkurranse der du tipper kampene og måler deg mot venner, familie, kollegaer – og resten av Norge – for å bevise hvem som kan fotball best.
               </p>
               <p className="text-slate-500 text-sm">
-                Bet on the Eliteserien, World Cup, Premier League and Champions League.
+                Spill på Eliteserien, VM, Premier League og Champions League.
               </p>
               <div className="mx-auto h-px w-3/4 bg-slate-800" />
-              <p className="text-slate-400 text-sm">Only invited participants have access.</p>
-              <p className="text-slate-500 text-xs">Do you want an invitation? matchtips.official@gmail.com</p>
+              <p className="text-slate-400 text-sm">Kun inviterte deltakere har tilgang.</p>
+              <p className="text-slate-500 text-xs">Ønsker du invitasjon? matchtips.official@gmail.com</p>
             </div>
           </div>
         </main>
 
         <footer className="border-t border-slate-900/80 px-6 sm:px-10 py-4 text-xs text-slate-500 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <div>MatchTips © 2026 • A product from The HUB</div>
+          <div>MatchTips © 2026 • Et produkt fra The HUB</div>
           <div className="flex items-center gap-3">
             <Link href="/contact">
-              <a className="hover:text-white transition-colors">Contact</a>
+              <a className="hover:text-white transition-colors">Kontakt</a>
             </Link>
             <span>•</span>
             <Link href="/privacy">
-              <a className="hover:text-white transition-colors">Privacy</a>
+              <a className="hover:text-white transition-colors">Personvern</a>
             </Link>
             <span>•</span>
             <Link href="/terms">
-              <a className="hover:text-white transition-colors">Terms</a>
+              <a className="hover:text-white transition-colors">Vilkår</a>
             </Link>
           </div>
         </footer>
