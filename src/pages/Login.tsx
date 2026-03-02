@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useAuth } from '@/contexts/AuthContext';
 import hubLogo from '@/assets/images/hub-logo.png';
+import mtlogo from '@/assets/images/mt-logo.png';
 import { AlertCircle, Info } from 'lucide-react';
 
 // Check if Supabase is configured
@@ -42,12 +43,12 @@ export default function Login() {
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center p-4">
       <Card className="bg-slate-900/50 backdrop-blur border-slate-800 p-8 sm:p-12 max-w-md w-full">
         <div className="text-center mb-8">
-          <img src={hubLogo} alt="The Hub" className="w-20 h-20 mx-auto mb-4 object-contain" />
+          <img src={mtlogo} alt="MatchTips" className="w-32 mx-auto mb-4 object-contain" />
           <h1 className="text-3xl font-bold text-white mb-2">Welcome to The Hub</h1>
           <p className="text-slate-400 text-sm">Sign in to make your predictions</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-8">
           {!supabaseConfigured && (
             <Alert className="bg-yellow-500/10 border-yellow-500/30 text-yellow-400">
               <Info className="w-4 h-4" />
@@ -103,10 +104,13 @@ export default function Login() {
           </Button>
         </form>
 
-        <div className="mt-6 pt-6 border-t border-slate-800 text-center">
+        <div className="mt-6 pt-6 border-t flex flex-col gap-2 border-slate-800 text-center">
           <p className="text-slate-500 text-sm">
-            Need access? Contact your admin to get login credentials.
+            Only invited participants have access.
           </p>
+          <p className="text-slate-400 text-xs">Contact</p>
+          <p className="text-slate-500 text-xs">matchtips.official@gmail.com</p>
+            
         </div>
       </Card>
     </div>
