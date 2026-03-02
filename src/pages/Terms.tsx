@@ -1,6 +1,6 @@
 import { Link } from 'wouter';
 import { Button } from '@/components/ui/button';
-import hubLogo from '@/assets/images/hub-logo.png';
+import mtlogo from '@/assets/images/mt-logo.png'
 
 export default function Terms() {
   return (
@@ -9,8 +9,7 @@ export default function Terms() {
         <header className="flex items-center justify-between px-6 sm:px-10 py-6">
           <Link href="/">
             <a className="flex items-center gap-3 hover:opacity-90 transition-opacity">
-              <img src={hubLogo} alt="The Hub" className="w-8 h-8 object-contain" />
-              <span className="text-sm text-slate-300">MatchTips</span>
+              <img src={mtlogo} alt="The Hub" className="w-32 object-contain" />
             </a>
           </Link>
           <Link href="/login">
