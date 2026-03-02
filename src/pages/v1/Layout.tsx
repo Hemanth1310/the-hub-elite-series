@@ -4,7 +4,7 @@ import { Home, CircleDot, Trophy, History, BarChart3, Settings, LogOut } from 'l
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
-import hubLogo from '@/assets/images/hub-logo.png';
+import mtlogo from '@/assets/images/mt-logo.png'
 import { supabase } from '@/lib/supabase';
 import { getFirstName } from '@/lib/utils';
 
@@ -68,12 +68,7 @@ export default function LayoutV1({ children }: { children: React.ReactNode }) {
             {/* Logo & Title */}
             <Link href="/">
               <a className="flex items-center gap-2 sm:gap-3 cursor-pointer hover:opacity-80 transition-opacity">
-                <img src={hubLogo} alt="The Hub" className="w-8 h-8 sm:w-10 sm:h-10 object-contain" />
-                <div>
-                  <h1 className="text-base sm:text-xl font-bold text-white">
-                    The Hub <span className="text-blue-400 text-xs sm:text-sm">v1</span>
-                  </h1>
-                </div>
+                <img src={mtlogo} alt="MatchTips" className="w-24 sm:w-32 object-contain" />
               </a>
             </Link>
 

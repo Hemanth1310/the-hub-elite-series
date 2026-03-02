@@ -5,7 +5,6 @@ import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useAuth } from '@/contexts/AuthContext';
-import hubLogo from '@/assets/images/hub-logo.png';
 import mtlogo from '@/assets/images/mt-logo.png';
 import { AlertCircle, Info } from 'lucide-react';
 

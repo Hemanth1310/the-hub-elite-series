@@ -2,7 +2,6 @@ import { Link, useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEffect } from 'react';
-import hubLogo from '@/assets/images/hub-logo.png';
 import mtlogo from '@/assets/images/mt-logo.png'
 
 export default function Home() {
@@ -35,7 +34,7 @@ export default function Home() {
         <main className="flex-1 flex items-center justify-center px-6 sm:px-10">
           <div className="w-full max-w-3xl text-center space-y-6">
             <div className="flex items-center justify-center gap-2 text-lg tracking-widest font-semibold">
-              <img src={mtlogo} alt="MatchTips-Logo-Here" className="max-w-54 object-contain"/>
+              <img src={mtlogo} alt="MatchTips" className="max-w-54 object-contain"/>
             </div>
 
             <h1 className="text-3xl sm:text-5xl font-semibold">The weekly football match</h1>
