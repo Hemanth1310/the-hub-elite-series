@@ -602,7 +602,8 @@ export default function ThisRoundV1() {
                             match_id: m.id,
                             round_id: round.id,
                             prediction: predictions[m.id],
-                            is_banker: roundType === 'round' && bankerMatchId === m.id,
+                            // Set banker in a separate update step to avoid transient unique constraint conflicts.
+                            is_banker: false,
                             is_locked: false,
                           }));
 
