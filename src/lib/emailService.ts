@@ -28,6 +28,10 @@ export interface EmailNotificationData {
   appUrl: string;
 }
 
+const EMAILJS_REQUEST_INTERVAL_MS = 1100;
+
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 const formatEmailDeadline = (deadline?: string): string | undefined => {
   if (!deadline) {
     return undefined;
@@ -147,16 +151,37 @@ export const notifyAllPlayers = async (
   type: 'active' | 'final',
   data: EmailNotificationData
 ): Promise<{ success: number; failed: number }> => {
-  const results = await Promise.allSettled(
-    players.map(player =>
-      type === 'active'
-        ? sendRoundActiveNotification(player.email, player.name, data)
-        : sendRoundFinalNotification(player.email, player.name, data)
-    )
+  const uniquePlayers = Array.from(
+    new Map(
+      players
+        .map((player) => ({
+          email: player.email?.trim(),
+          name: player.name,
+        }))
+        .filter((player) => player.email)
+        .map((player) => [player.email.toLowerCase(), player])
+    ).values()
   );
 
-  const success = results.filter(r => r.status === 'fulfilled' && r.value).length;
-  const failed = results.length - success;
+  let success = 0;
+  let failed = 0;
+
+  for (let index = 0; index < uniquePlayers.length; index += 1) {
+    const player = uniquePlayers[index];
+    const sent = await (type === 'active'
+      ? sendRoundActiveNotification(player.email, player.name, data)
+      : sendRoundFinalNotification(player.email, player.name, data));
+
+    if (sent) {
+      success += 1;
+    } else {
+      failed += 1;
+    }
+
+    if (index < uniquePlayers.length - 1) {
+      await wait(EMAILJS_REQUEST_INTERVAL_MS);
+    }
+  }
 
   return { success, failed };
 };
