@@ -2,13 +2,20 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Clock, TrendingUp, TrendingDown, CheckCircle, XCircle, Target, BarChart3, Ban } from 'lucide-react';
+import { Clock, TrendingUp, TrendingDown, CheckCircle, XCircle, Target, BarChart3, Ban, Trophy } from 'lucide-react';
 import { Link } from 'wouter';
 import LayoutV1 from './Layout';
 import { useEffect, useState } from 'react';
 import { formatTimeRemainingCompact } from '@/lib/timeUtils';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+
+type CompetitionEntry = {
+  id: string;
+  name: string;
+  status: 0 | 1 | 2;
+  is_active: boolean;
+};
 
 export default function DashboardV1() {
   const { user } = useAuth();
@@ -29,11 +36,29 @@ export default function DashboardV1() {
   const [predictionAccuracy, setPredictionAccuracy] = useState(0);
   const [bankerSuccessRate, setBankerSuccessRate] = useState(0);
 
+  const [competitions, setCompetitions] = useState<CompetitionEntry[]>([]);
+
   useEffect(() => {
     const handleCompetitionChange = () => setCompetitionTick((prev) => prev + 1);
     window.addEventListener('competition-changed', handleCompetitionChange);
     return () => window.removeEventListener('competition-changed', handleCompetitionChange);
   }, []);
+
+  useEffect(() => {
+    supabase
+      .from('competitions')
+      .select('id,name,status,is_active')
+      .order('created_at', { ascending: true })
+      .then(({ data }) => {
+        if (data) setCompetitions(data);
+      });
+  }, [competitionTick]);
+
+  const handleSwitchCompetition = async (id: string) => {
+    await supabase.from('competitions').update({ is_active: true }).eq('id', id);
+    await supabase.from('competitions').update({ is_active: false }).neq('id', id);
+    window.dispatchEvent(new Event('competition-changed'));
+  };
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -408,7 +433,7 @@ export default function DashboardV1() {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid sm:grid-cols-2 gap-4">
+      <div className="grid sm:grid-cols-2 gap-4 mb-4">
         {/* Last Round Performance */}
         <Card className="bg-slate-900 border-slate-800 p-4">
           <div className="flex items-center gap-2 mb-3">
@@ -496,6 +521,38 @@ export default function DashboardV1() {
           </div>
         </Card>
       </div>
+
+      {/* Tournaments Section */}
+      {competitions.length > 0 && (
+        <div className="mt-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Trophy className="w-4 h-4 text-blue-400" />
+            <h3 className="text-base font-semibold text-white">Tournaments</h3>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {competitions.map((comp) => (
+              <button
+                key={comp.id}
+                onClick={() => handleSwitchCompetition(comp.id)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium border transition-colors ${
+                  comp.is_active
+                    ? 'bg-blue-600 border-blue-500 text-white'
+                    : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-white hover:bg-slate-700'
+                }`}
+              >
+                {comp.name}
+                {comp.status === 1 ? (
+                  <span className="w-2 h-2 rounded-full bg-green-400 shrink-0" />
+                ) : comp.status === 2 ? (
+                  <span className="w-2 h-2 rounded-full bg-blue-300 shrink-0" />
+                ) : (
+                  <span className="w-2 h-2 rounded-full bg-slate-500 shrink-0" />
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       </>
       )}
     </LayoutV1>
