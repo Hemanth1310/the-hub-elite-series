@@ -320,7 +320,17 @@ export default function DashboardV1() {
         </div>
       )}
 
-      {!loading && (
+      {!loading && competitions.length === 0 && (
+        <div className="flex flex-col items-center justify-center min-h-[50vh] text-center px-4">
+          <Trophy className="w-12 h-12 text-slate-600 mb-4" />
+          <h2 className="text-xl font-semibold text-white mb-2">No competitions yet</h2>
+          <p className="text-slate-400 text-sm max-w-sm">
+            You are not part of any competitions at the moment. Contact the admin to get an invitation.
+          </p>
+        </div>
+      )}
+
+      {!loading && competitions.length > 0 && (
         <>
       {/* Top Row - Current Round & Position */}
       <div className="grid sm:grid-cols-2 gap-4 mb-4">
