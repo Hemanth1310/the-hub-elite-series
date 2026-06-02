@@ -128,10 +128,21 @@ export default function CompareRoundV1() {
 
       setMatches(formattedMatches);
 
-      const { data: userRows } = await supabase
-        .from('users')
-        .select('id,name')
-        .order('name', { ascending: true });
+      const { data: memberRows } = await supabase
+        .from('invitations')
+        .select('email')
+        .eq('competition_id', activeCompetition.id)
+        .eq('status', 'accepted');
+
+      const memberEmails = (memberRows || []).map((r: any) => r.email);
+
+      const { data: userRows } = memberEmails.length
+        ? await supabase
+            .from('users')
+            .select('id,name')
+            .in('email', memberEmails)
+            .order('name', { ascending: true })
+        : { data: [] };
 
       setUsers(userRows || []);
 

@@ -7,23 +7,32 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Plus, Pencil } from 'lucide-react';
+import { Plus, Pencil, Trash2, UserPlus } from 'lucide-react';
 import { Link } from 'wouter';
 import { toast } from 'sonner';
 import LayoutV1 from './Layout';
 import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function AdminV1() {
+  const { user } = useAuth();
   const [competitions, setCompetitions] = useState<any[]>([]);
   const [selectedCompetition, setSelectedCompetition] = useState('');
   const [rounds, setRounds] = useState<any[]>([]);
   const [postponedSets, setPostponedSets] = useState<any[]>([]);
-  const [viewMode, setViewMode] = useState<'rounds' | 'postponed'>('rounds');
+  const [viewMode, setViewMode] = useState<'rounds' | 'postponed' | 'members'>('rounds');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [competitionName, setCompetitionName] = useState('');
   const [isActive, setIsActive] = useState(false);
   const [loading, setLoading] = useState(true);
   const [competitionTick, setCompetitionTick] = useState(0);
+
+  const [members, setMembers] = useState<any[]>([]);
+  const [allUsers, setAllUsers] = useState<any[]>([]);
+  const [membersLoading, setMembersLoading] = useState(false);
+  const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState('');
+  const [addMemberLoading, setAddMemberLoading] = useState(false);
 
   useEffect(() => {
     const handleCompetitionChange = () => setCompetitionTick((prev) => prev + 1);
@@ -100,6 +109,92 @@ export default function AdminV1() {
     fetchRounds();
   }, [selectedCompetition, competitionTick]);
 
+  useEffect(() => {
+    if (!selectedCompetition || viewMode !== 'members') return;
+
+    const fetchMembers = async () => {
+      setMembersLoading(true);
+
+      const { data: inviteRows } = await supabase
+        .from('invitations')
+        .select('id, email, status, created_at, invited_by')
+        .eq('competition_id', selectedCompetition)
+        .order('created_at', { ascending: true });
+
+      const emails = (inviteRows || []).map((r) => r.email);
+      let userRows: any[] = [];
+      if (emails.length) {
+        const { data } = await supabase.from('users').select('id, name, email').in('email', emails);
+        userRows = data || [];
+      }
+
+      const userMap = Object.fromEntries(userRows.map((u) => [u.email, u]));
+
+      setMembers(
+        (inviteRows || []).map((inv) => ({
+          ...inv,
+          user: userMap[inv.email] || null,
+        }))
+      );
+
+      const { data: allUserRows } = await supabase
+        .from('users')
+        .select('id, name, email')
+        .order('name', { ascending: true });
+      setAllUsers(allUserRows || []);
+
+      setMembersLoading(false);
+    };
+
+    fetchMembers();
+  }, [selectedCompetition, viewMode, competitionTick]);
+
+  const handleAddMember = async () => {
+    if (!selectedUserId || !selectedCompetition || !user) return;
+    setAddMemberLoading(true);
+
+    const targetUser = allUsers.find((u) => u.id === selectedUserId);
+    if (!targetUser) {
+      toast.error('User not found');
+      setAddMemberLoading(false);
+      return;
+    }
+
+    const token = crypto.randomUUID().replace(/-/g, '');
+
+    const { error } = await supabase.from('invitations').upsert(
+      {
+        email: targetUser.email,
+        competition_id: selectedCompetition,
+        invited_by: user.id,
+        token,
+        status: 'accepted',
+        expires_at: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+      },
+      { onConflict: 'email,competition_id' }
+    );
+
+    if (error) {
+      toast.error('Failed to add member');
+    } else {
+      toast.success(`${targetUser.name} added to competition`);
+      setIsAddMemberOpen(false);
+      setSelectedUserId('');
+      setCompetitionTick((t) => t + 1);
+    }
+    setAddMemberLoading(false);
+  };
+
+  const handleRemoveMember = async (invitationId: string, email: string) => {
+    const { error } = await supabase.from('invitations').delete().eq('id', invitationId);
+    if (error) {
+      toast.error('Failed to remove member');
+    } else {
+      toast.success(`${email} removed from competition`);
+      setCompetitionTick((t) => t + 1);
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'scheduled':
@@ -147,7 +242,7 @@ export default function AdminV1() {
       </div>
 
       {/* View Mode Cards - Like Archive Tabs */}
-      <div className="grid grid-cols-2 gap-4 mb-6 max-w-2xl">
+      <div className="grid grid-cols-3 gap-4 mb-6 max-w-3xl">
         <button
           onClick={() => setViewMode('rounds')}
           className={`
@@ -183,6 +278,25 @@ export default function AdminV1() {
             </h3>
             <p className="text-slate-400 text-sm">Mini-rounds for rescheduled matches</p>
             <div className={`absolute top-4 right-4 w-3 h-3 rounded-full ${viewMode === 'postponed' ? 'bg-blue-500' : 'bg-transparent'}`} />
+          </div>
+        </button>
+
+        <button
+          onClick={() => setViewMode('members')}
+          className={`
+            relative p-6 rounded-lg border-2 transition-all duration-200
+            ${viewMode === 'members'
+              ? 'bg-blue-500/10 border-blue-500 shadow-lg shadow-blue-500/20'
+              : 'bg-slate-900 border-slate-800 hover:border-slate-700 hover:bg-slate-800/50'
+            }
+          `}
+        >
+          <div className="text-left">
+            <h3 className={`text-lg font-bold mb-1 ${viewMode === 'members' ? 'text-blue-400' : 'text-white'}`}>
+              Members
+            </h3>
+            <p className="text-slate-400 text-sm">Manage competition access</p>
+            <div className={`absolute top-4 right-4 w-3 h-3 rounded-full ${viewMode === 'members' ? 'bg-blue-500' : 'bg-transparent'}`} />
           </div>
         </button>
       </div>
@@ -282,6 +396,118 @@ export default function AdminV1() {
           </Table>
         </div>
       )}
+
+      {/* Members Table */}
+      {viewMode === 'members' && (
+        <div className="bg-slate-900 border border-slate-800 rounded-lg overflow-hidden">
+          <div className="p-6 border-b border-slate-800 flex items-center justify-between">
+            <h2 className="text-xl font-bold text-white">Members</h2>
+            <Button
+              size="sm"
+              className="bg-blue-600 hover:bg-blue-700"
+              onClick={() => setIsAddMemberOpen(true)}
+            >
+              <UserPlus className="w-4 h-4 mr-2" />
+              Add Member
+            </Button>
+          </div>
+          {membersLoading ? (
+            <div className="p-6 text-slate-400 text-sm">Loading...</div>
+          ) : members.length === 0 ? (
+            <div className="p-6 text-slate-400 text-sm">No members yet. Add users to give them access to this competition.</div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow className="border-slate-800 hover:bg-transparent">
+                  <TableHead className="text-slate-400 font-semibold">Name</TableHead>
+                  <TableHead className="text-slate-400 font-semibold">Email</TableHead>
+                  <TableHead className="text-slate-400 font-semibold">Status</TableHead>
+                  <TableHead className="text-slate-400 font-semibold">Added</TableHead>
+                  <TableHead className="text-slate-400 font-semibold text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {members.map((member) => (
+                  <TableRow key={member.id} className="border-slate-800 hover:bg-slate-800/50">
+                    <TableCell className="text-white font-medium">
+                      {member.user?.name || '—'}
+                    </TableCell>
+                    <TableCell className="text-slate-300">{member.email}</TableCell>
+                    <TableCell>
+                      <Badge
+                        className={
+                          member.status === 'accepted'
+                            ? 'bg-green-500/20 text-green-400 border-green-500/30 text-xs'
+                            : member.status === 'pending'
+                            ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30 text-xs'
+                            : 'bg-slate-500/20 text-slate-400 border-slate-500/30 text-xs'
+                        }
+                      >
+                        {member.status.toUpperCase()}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-slate-400 text-sm">
+                      {new Date(member.created_at).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                        onClick={() => handleRemoveMember(member.id, member.email)}
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Remove
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </div>
+      )}
+
+      {/* Add Member Dialog */}
+      <Dialog open={isAddMemberOpen} onOpenChange={(open) => {
+        setIsAddMemberOpen(open);
+        if (!open) setSelectedUserId('');
+      }}>
+        <DialogContent className="bg-slate-900 border-slate-800 sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-white">Add Member</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <Label className="text-slate-300 mb-2 block">Select User</Label>
+            <Select value={selectedUserId} onValueChange={setSelectedUserId}>
+              <SelectTrigger className="bg-slate-800 border-slate-700 text-white">
+                <SelectValue placeholder="Choose a user..." />
+              </SelectTrigger>
+              <SelectContent className="bg-slate-800 border-slate-700">
+                {allUsers
+                  .filter((u) => !members.some((m) => m.email === u.email))
+                  .map((u) => (
+                    <SelectItem key={u.id} value={u.id} className="text-white focus:bg-slate-700 focus:text-white">
+                      {u.name} — {u.email}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAddMemberOpen(false)} className="border-slate-700">
+              Cancel
+            </Button>
+            <Button
+              onClick={handleAddMember}
+              disabled={!selectedUserId || addMemberLoading}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              {addMemberLoading ? 'Adding...' : 'Add Member'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={isDialogOpen} onOpenChange={(open) => {
         setIsDialogOpen(open);
