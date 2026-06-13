@@ -124,24 +124,6 @@ export default function CompareRoundHistoryV1() {
 
       setMatches(formattedMatches);
 
-      const { data: memberRows } = await supabase
-        .from('invitations')
-        .select('email')
-        .eq('competition_id', activeCompetition.id)
-        .eq('status', 'accepted');
-
-      const memberEmails = (memberRows || []).map((r: any) => r.email);
-
-      const { data: userRows } = memberEmails.length
-        ? await supabase
-            .from('users')
-            .select('id,name')
-            .in('email', memberEmails)
-            .order('name', { ascending: true })
-        : { data: [] };
-
-      setUsers(userRows || []);
-
       const { data: predictionRows } = await supabase
         .from('predictions')
         .select('match_id,user_id,prediction,is_banker')
@@ -155,6 +137,18 @@ export default function CompareRoundHistoryV1() {
       }));
 
       setPredictions(formattedPredictions);
+
+      const predictionUserIds = [...new Set((predictionRows || []).map((r: any) => r.user_id))];
+
+      const { data: userRows } = predictionUserIds.length
+        ? await supabase
+            .from('users')
+            .select('id,name')
+            .in('id', predictionUserIds)
+            .order('name', { ascending: true })
+        : { data: [] };
+
+      setUsers(userRows || []);
 
       const { data: pointRows } = await supabase
         .from('round_stats')
