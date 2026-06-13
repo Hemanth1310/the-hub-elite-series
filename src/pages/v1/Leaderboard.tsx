@@ -49,10 +49,23 @@ export default function LeaderboardV1() {
         return;
       }
 
+      const { data: roundRows } = await supabase
+        .from('rounds')
+        .select('id')
+        .eq('competition_id', activeCompetition.id);
+
+      const roundIds = (roundRows || []).map((r: any) => r.id);
+
+      if (!roundIds.length) {
+        setLeaderboard([]);
+        setLoading(false);
+        return;
+      }
+
       const { data } = await supabase
         .from('round_stats')
-        .select('user_id,total_points,correct_predictions,banker_correct,rank, round:round_id(competition_id), user:user_id(name)')
-        .eq('round.competition_id', activeCompetition.id);
+        .select('user_id,total_points,correct_predictions,banker_correct,rank,user:user_id(name)')
+        .in('round_id', roundIds);
 
       const aggregated = new Map<string, LeaderboardEntry>();
 
