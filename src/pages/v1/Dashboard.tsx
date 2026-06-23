@@ -150,19 +150,40 @@ export default function DashboardV1() {
         setPredictionsComplete(false);
       }
 
-      const { data: leaderboardRow } = await supabase
-        .from('leaderboard')
-        .select('total_points,current_rank,correct_predictions,banker_success,banker_fail,rounds_played')
-        .eq('user_id', user.id)
+      const { data: finalRoundIds } = await supabase
+        .from('rounds')
+        .select('id')
         .eq('competition_id', activeCompetition.id)
-        .maybeSingle();
+        .eq('status', 'final');
 
-      if (leaderboardRow) {
-        setUserPosition(leaderboardRow.current_rank || null);
-        setUserPoints(leaderboardRow.total_points || 0);
-        setTotalPoints(leaderboardRow.total_points || 0);
-        const bankerTotal = (leaderboardRow.banker_success || 0) + (leaderboardRow.banker_fail || 0);
-        setBankerSuccessRate(bankerTotal > 0 ? Math.round(((leaderboardRow.banker_success || 0) / bankerTotal) * 100) : 0);
+      const roundIds = (finalRoundIds || []).map((r: any) => r.id);
+
+      if (roundIds.length > 0) {
+        const { data: allStats } = await supabase
+          .from('round_stats')
+          .select('user_id,total_points,banker_correct')
+          .in('round_id', roundIds);
+
+        const totals = new Map<string, { points: number; bankerSuccess: number; bankerFail: number }>();
+        (allStats || []).forEach((r: any) => {
+          const cur = totals.get(r.user_id) || { points: 0, bankerSuccess: 0, bankerFail: 0 };
+          cur.points += r.total_points || 0;
+          if (r.banker_correct === true) cur.bankerSuccess += 1;
+          else if (r.banker_correct === false) cur.bankerFail += 1;
+          totals.set(r.user_id, cur);
+        });
+
+        const sorted = Array.from(totals.entries()).sort((a, b) => b[1].points - a[1].points);
+        const userIndex = sorted.findIndex(([uid]) => uid === user.id);
+        const userEntry = totals.get(user.id);
+
+        if (userEntry) {
+          setTotalPoints(userEntry.points);
+          setUserPoints(userEntry.points);
+          setUserPosition(userIndex >= 0 ? userIndex + 1 : null);
+          const bankerTotal = userEntry.bankerSuccess + userEntry.bankerFail;
+          setBankerSuccessRate(bankerTotal > 0 ? Math.round((userEntry.bankerSuccess / bankerTotal) * 100) : 0);
+        }
       }
 
       const { data: predictionRows } = await supabase
