@@ -154,6 +154,7 @@ export default function DashboardV1() {
         .from('leaderboard')
         .select('total_points,current_rank,correct_predictions,banker_success,banker_fail,rounds_played')
         .eq('user_id', user.id)
+        .eq('competition_id', activeCompetition.id)
         .maybeSingle();
 
       if (leaderboardRow) {
