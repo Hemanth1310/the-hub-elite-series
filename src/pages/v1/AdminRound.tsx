@@ -625,6 +625,11 @@ export default function AdminRoundV1() {
       )
     );
 
+    if (status === 'final' && currentRoundId && competitionId) {
+      await supabase.rpc('update_round_stats', { p_round_id: currentRoundId });
+      await supabase.rpc('update_leaderboard', { p_competition_id: competitionId });
+    }
+
     toast.success('Changes saved');
   };
 
