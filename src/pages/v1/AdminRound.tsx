@@ -46,6 +46,7 @@ export default function AdminRoundV1() {
   const isNew = roundNumber === 'new';
   
   const [status, setStatus] = useState<'scheduled' | 'active' | 'final'>(isNew ? 'scheduled' : 'scheduled');
+  const [wasOriginallyFinal, setWasOriginallyFinal] = useState(false);
   const [deadline, setDeadline] = useState('');
   const [roundNumberInput, setRoundNumberInput] = useState(isNew ? '' : roundNumber);
   const [competitionId, setCompetitionId] = useState<string | null>(null);
@@ -124,6 +125,7 @@ export default function AdminRoundV1() {
             setRoundNumberInput(postponedRound.round_number.toString());
             setDeadline(toInputDateTime(postponedRound.deadline));
             setStatus(postponedRound.status === 'published' ? 'active' : postponedRound.status);
+            setWasOriginallyFinal(postponedRound.status === 'final');
 
             const { data: postponedMatches } = await supabase
               .from('matches')
@@ -194,6 +196,7 @@ export default function AdminRoundV1() {
           setRoundNumberInput(round.round_number.toString());
           setDeadline(toInputDateTime(round.deadline));
           setStatus(round.status === 'published' ? 'active' : round.status);
+          setWasOriginallyFinal(round.status === 'final');
 
           const { data: roundMatches } = await supabase
             .from('matches')
@@ -625,9 +628,12 @@ export default function AdminRoundV1() {
       )
     );
 
-    if (status === 'final' && currentRoundId && competitionId) {
-      await supabase.rpc('update_round_stats', { p_round_id: currentRoundId });
-      await supabase.rpc('update_leaderboard', { p_competition_id: competitionId });
+    if (wasOriginallyFinal && currentRoundId) {
+      // Cycle the round status to retrigger the on_round_finalized DB trigger,
+      // which recalculates round_stats and leaderboard with the corrected results.
+      await supabase.from('rounds').update({ status: 'published' }).eq('id', currentRoundId);
+      await supabase.from('rounds').update({ status: 'final' }).eq('id', currentRoundId);
+      setStatus('final');
     }
 
     toast.success('Changes saved');
